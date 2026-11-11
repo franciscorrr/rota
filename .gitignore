@@ -1,0 +1,21 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# AI agent files and local tool settings
+AGENTS.md
+.claude/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~

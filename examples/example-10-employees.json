@@ -1,0 +1,51 @@
+{
+  "settings": {
+    "weekStart": "2026-11-16",
+    "weeklyCap": 230,
+    "openDays": [0, 1, 2, 3, 4, 5],
+    "daysOffPerEmployee": 1,
+    "contractDaysPerWeek": 5,
+    "minRestHours": 12,
+    "categories": [
+      { "id": "manager", "name": "Manager", "rank": 3 },
+      { "id": "salesperson", "name": "Salesperson", "rank": 2 },
+      { "id": "stock-clerk", "name": "Stock clerk", "rank": 1 }
+    ],
+    "shifts": {
+      "morning": { "start": "09:00", "end": "15:00", "required": { "manager": 1, "salesperson": 1, "stock-clerk": 1 } },
+      "afternoon": { "start": "15:00", "end": "21:00", "required": { "salesperson": 1, "stock-clerk": 1 } }
+    }
+  },
+  "employees": [
+    { "id": "e1", "name": "Lucía Fernández", "categoryId": "manager", "contractHours": 30, "absences": [], "prevWeekLastShiftEnd": "" },
+    { "id": "e2", "name": "Carlos Martín", "categoryId": "manager", "contractHours": 30, "absences": [], "blockedShifts": ["5|afternoon"], "prevWeekLastShiftEnd": "" },
+    {
+      "id": "e3",
+      "name": "Marta Gómez",
+      "categoryId": "salesperson",
+      "contractHours": 28,
+      "absences": ["2026-11-16", "2026-11-17", "2026-11-18"],
+      "prevWeekLastShiftEnd": ""
+    },
+    { "id": "e4", "name": "Javier Ruiz", "categoryId": "salesperson", "contractHours": 25, "absences": [], "prevWeekLastShiftEnd": "" },
+    { "id": "e5", "name": "Elena Navarro", "categoryId": "salesperson", "contractHours": 24, "absences": [], "prevWeekLastShiftEnd": "2026-11-15T21:00" },
+    { "id": "e6", "name": "Pablo Sanz", "categoryId": "stock-clerk", "contractHours": 20, "absences": [], "blockedShifts": ["0|morning", "1|morning", "2|morning"], "prevWeekLastShiftEnd": "" },
+    {
+      "id": "e7",
+      "name": "Sofía Romero",
+      "categoryId": "stock-clerk",
+      "contractHours": 20,
+      "absences": ["2026-11-19", "2026-11-20"],
+      "prevWeekLastShiftEnd": ""
+    },
+    { "id": "e8", "name": "Diego Herrera", "categoryId": "stock-clerk", "contractHours": 18, "absences": [], "prevWeekLastShiftEnd": "" },
+    { "id": "e9", "name": "Carmen Ortega", "categoryId": "stock-clerk", "contractHours": 15, "absences": [], "prevWeekLastShiftEnd": "2026-11-15T22:30" },
+    { "id": "e10", "name": "Álvaro Castillo", "categoryId": "stock-clerk", "contractHours": 12, "absences": [], "prevWeekLastShiftEnd": "" }
+  ],
+  "overrides": {
+    "2026-11-21|morning": { "stock-clerk": 2 },
+    "2026-11-21|afternoon": { "stock-clerk": 2 },
+    "2026-11-17|afternoon": { "stock-clerk": 0 }
+  },
+  "assignments": []
+}

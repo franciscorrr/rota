@@ -1,0 +1,15 @@
+node_modules
+dist
+test-results
+playwright-report
+.git
+.gitignore
+Dockerfile
+.dockerignore
+e2e
+test
+examples
+README.md
+AGENTS.md
+TODO.md
+.github
