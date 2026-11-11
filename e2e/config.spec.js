@@ -8,10 +8,13 @@ test('on startup there are no categories: create one before adding employees', a
 
   const addEmployee = page.getByRole('button', { name: 'Añadir empleado' });
   await expect(addEmployee).toBeDisabled();
+  const needsCategory = page.getByText('Antes de añadir empleados necesitas al menos una categoría');
+  await expect(needsCategory).toBeVisible();
 
   await page.getByRole('button', { name: 'Añadir categoría' }).click();
   await expect(rows).toHaveCount(1);
   await expect(addEmployee).toBeEnabled();
+  await expect(needsCategory).toBeHidden();
 
   await addEmployee.click();
   await expect(employeeRows(page)).toHaveCount(1);
@@ -108,4 +111,13 @@ test('category names from the imported file are kept when the language changes',
 
   await page.getByLabel('Idioma').selectOption('en');
   await expect(categoryName).toHaveValue('Boss');
+});
+
+test('the empty-categories notice creates the first category in one click', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: 'Crear una categoría' }).click();
+
+  await expect(page.locator('fieldset.categories tbody tr')).toHaveCount(1);
+  await expect(page.getByText('Antes de añadir empleados necesitas')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Añadir empleado' })).toBeEnabled();
 });

@@ -14,9 +14,9 @@ test('"Reset all" clears it and stops persisting the previous data', async ({ pa
   await openWithSchedule(page);
   await page.getByRole('button', { name: 'Restablecer todo' }).click();
 
-  await expect(page.locator('#employees .hint')).toContainText('Aún no hay empleados');
+  await expect(page.locator('#employees .hint').first()).toContainText('Aún no hay empleados');
   await page.reload();
-  await expect(page.locator('#employees .hint')).toContainText('Aún no hay empleados');
+  await expect(page.locator('#employees .hint').first()).toContainText('Aún no hay empleados');
 });
 
 test('"Clear schedule" removes assignments but keeps employees', async ({ page }) => {

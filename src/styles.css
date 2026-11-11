@@ -169,6 +169,30 @@ small,
   color: var(--muted);
 }
 
+.callout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+}
+
+.callout p {
+  margin: 0;
+  flex: 1 1 260px;
+}
+
+.callout.warn {
+  background: var(--warn-bg);
+  border-color: var(--warn);
+  color: var(--warn);
+  font-weight: 600;
+}
+
 fieldset {
   border: 1px solid var(--border);
   border-radius: 8px;

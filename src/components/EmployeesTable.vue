@@ -3,6 +3,7 @@
 // last shift of the previous week.
 import { computed } from 'vue';
 import {
+  addCategory,
   addEmployee,
   blockShift,
   blockableShifts,
@@ -162,6 +163,10 @@ function onBlockSelected(employee, event) {
         </tr>
       </tbody>
     </table>
+  </div>
+  <div v-if="!hasCategories" class="callout warn">
+    <p>{{ t('employees.needsCategory') }}</p>
+    <button type="button" @click="addCategory(settings)">{{ t('employees.createCategory') }}</button>
   </div>
   <button
     type="button"
