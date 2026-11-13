@@ -55,14 +55,15 @@ function editInEditView() {
     <p v-if="detail.assignments.length === 0" class="hint">{{ t('shiftPopup.nobody') }}</p>
     <ul v-else class="popup-list">
       <li v-for="assignment in detail.assignments" :key="assignment.id" :class="{ bad: assignment.bad }">
-        {{ t('shiftPopup.assignmentLine', {
+        {{ t(assignment.breakMinutes > 0 ? 'shiftPopup.assignmentLineBreak' : 'shiftPopup.assignmentLine', {
+          minutes: assignment.breakMinutes,
           name: assignment.name,
           category: assignment.category,
           start: assignment.start,
           end: assignment.end,
           hours: assignment.hours,
         }) }}
-        <AssignmentBadges :bad="assignment.bad" />
+        <AssignmentBadges :bad="assignment.bad" :break-minutes="assignment.breakMinutes" />
       </li>
     </ul>
 

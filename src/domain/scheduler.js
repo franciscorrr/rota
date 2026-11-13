@@ -69,6 +69,8 @@ export function defaultSettings(weekStart, locale = DEFAULT_LOCALE) {
     daysOffPerEmployee: 1,
     contractDaysPerWeek: 5,
     minRestHours: 12,
+    // Break inside long shifts: an assignment longer than `afterHours` includes `minutes` of unpaid break.
+    breaks: { enabled: false, afterHours: 6, minutes: 15 },
     // The user creates the categories on startup; until then there is no minimum staff.
     categories: [],
     // Minimum staff per shift and category. A higher rank covers lower-rank places,
@@ -90,6 +92,31 @@ export function shiftHours(shift) {
 /** Hours an assignment lasts (negative if the end is before the start). */
 export function assignmentHours(assignment) {
   return (parseHM(assignment.end) - parseHM(assignment.start)) / 60;
+}
+
+/**
+ * Minutes of break included in a stretch of work lasting `grossHours`: the configured break if the
+ * option is enabled and the stretch is longer than the threshold, otherwise 0.
+ */
+export function breakMinutesFor(settings, grossHours) {
+  const breaks = settings.breaks;
+  if (!breaks?.enabled) return 0;
+  return grossHours > breaks.afterHours ? breaks.minutes : 0;
+}
+
+/** Minutes of break included in an assignment (0 if the option is off or it is not long enough). */
+export function breakMinutesOf(settings, assignment) {
+  return breakMinutesFor(settings, assignmentHours(assignment));
+}
+
+/** Net hours of a stretch of work: gross hours minus its break (never negative). */
+export function netHoursFor(settings, grossHours) {
+  return Math.max(0, grossHours - breakMinutesFor(settings, grossHours) / 60);
+}
+
+/** Hours an assignment counts as worked: its duration minus the break. Equal to the gross value if breaks are off. */
+export function netAssignmentHours(settings, assignment) {
+  return netHoursFor(settings, assignmentHours(assignment));
 }
 
 /** Open ISO days, sorted. */
@@ -334,6 +361,7 @@ function createSlots(settings, overrides) {
         start: shift.start,
         end: shift.end,
         hours: shiftHours(shift),
+        netHours: netHoursFor(settings, shiftHours(shift)),
         need: requiredByCategory(settings, overrides, day, shiftKey),
         supply: {}, // places covered per category (extra shifts count as a fraction)
       });
@@ -343,9 +371,9 @@ function createSlots(settings, overrides) {
 }
 
 /** Records on an employee that they work in that interval: occupies the day and spends pending hours. */
-function bookWorker(worker, day, interval) {
+function bookWorker(worker, day, interval, settings) {
   worker.items.push({ day, startMin: interval.startMin, endMin: interval.endMin });
-  worker.remainingHours -= (interval.endMin - interval.startMin) / 60;
+  worker.remainingHours -= netHoursFor(settings, (interval.endMin - interval.startMin) / 60);
 }
 
 /** Records in a slot the places covered by an employee's work in that interval. */
@@ -410,7 +438,7 @@ function findMostConstrainedSlot(slots, workers, rank, rules) {
     const candidates = workers.filter((worker) => {
       const category = categoryOf(worker.employee, settings);
       return Boolean(category) && category.rank >= rank
-        && worker.remainingHours >= slot.hours - EPSILON
+        && worker.remainingHours >= slot.netHours - EPSILON
         && canWork(worker, slot, rules);
     });
     if (candidates.length === 0) continue;
@@ -470,7 +498,7 @@ export function generate(settings, employees, overrides = {}, options = {}) {
     const worker = workerById.get(assignment.employeeId);
     if (!worker) continue;
     const interval = toInterval(settings, assignment.day, assignment.start, assignment.end);
-    bookWorker(worker, assignment.day, interval);
+    bookWorker(worker, assignment.day, interval, settings);
     const slot = slots.find((s) => s.day === assignment.day && s.key === assignment.shift);
     if (slot) bookSlot(slot, worker, interval, settings);
   }
@@ -489,7 +517,7 @@ export function generate(settings, employees, overrides = {}, options = {}) {
       const { slot } = best;
       const worker = pickCandidate(best.candidates, settings);
       const interval = toInterval(settings, slot.day, slot.start, slot.end);
-      bookWorker(worker, slot.day, interval);
+      bookWorker(worker, slot.day, interval, settings);
       bookSlot(slot, worker, interval, settings);
       added.push({
         id: uid(),
@@ -723,7 +751,7 @@ function checkEmployees(settings, employees, assignmentsByEmployee) {
 
   for (const employee of employees) {
     const own = assignmentsByEmployee.get(employee.id);
-    const assigned = own.reduce((sum, assignment) => sum + Math.max(0, assignmentHours(assignment)), 0);
+    const assigned = own.reduce((sum, assignment) => sum + netAssignmentHours(settings, assignment), 0);
     const target = targetHours(employee, settings);
     const absence = absenceHoursOf(employee, settings);
     const workDays = new Set(own.map((assignment) => assignment.day)).size;

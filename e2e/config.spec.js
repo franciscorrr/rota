@@ -121,3 +121,34 @@ test('the empty-categories notice creates the first category in one click', asyn
   await expect(page.getByText('Antes de añadir empleados necesitas')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Añadir empleado' })).toBeEnabled();
 });
+
+test('breaks within the shift: off by default, shown on long shifts and kept after a reload', async ({ page }) => {
+  await openWithSchedule(page);
+  const toggle = page.getByRole('checkbox', { name: 'Descansos dentro del turno' });
+  const afterHours = page.getByLabel('Descanso si el turno dura más de (h)');
+  const minutes = page.getByLabel('Duración del descanso (min)');
+
+  await expect(toggle).not.toBeChecked();
+  await expect(afterHours).toBeDisabled();
+  await expect(page.locator('.break-mark')).toHaveCount(0);
+  const hoursWithoutBreaks = await page.locator('.sheet tfoot td.num').nth(2).innerText();
+
+  // The example shifts last 6 h: with a 5 h threshold every assignment includes the break.
+  await toggle.check();
+  await afterHours.fill('5');
+  await afterHours.dispatchEvent('change');
+  await minutes.fill('30');
+  await minutes.dispatchEvent('change');
+
+  await expect(page.locator('td.cell.work .break-mark').first()).toContainText('30 min');
+  await expect(page.locator('.legend')).toContainText('Incluye descanso');
+  await expect(page.locator('.sheet tfoot td.num').nth(2)).not.toHaveText(hoursWithoutBreaks);
+
+  await page.reload();
+  await expect(page.getByRole('checkbox', { name: 'Descansos dentro del turno' })).toBeChecked();
+  await expect(page.locator('td.cell.work .break-mark').first()).toBeVisible();
+
+  await page.getByRole('checkbox', { name: 'Descansos dentro del turno' }).uncheck();
+  await expect(page.locator('.break-mark')).toHaveCount(0);
+  await expect(page.locator('.sheet tfoot td.num').nth(2)).toHaveText(hoursWithoutBreaks);
+});

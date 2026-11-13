@@ -51,6 +51,7 @@ The interface is available in **Spanish** and **English**. The **Language** sele
 | Week (Monday) | Next Monday |
 | Weekly hours limit | 200 h |
 | Minimum rest between shifts | 12 h |
+| Breaks within the shift | Off. When on: 15 min break in assignments longer than 6 h |
 | Opening days | Monday to Saturday |
 | Days off per employee | 1 |
 | Contract working days (to prorate absences) | 5 |
@@ -75,6 +76,15 @@ For each shift (morning and afternoon) you set the **minimum staff per category*
 - In **Edit** you can change the minimum of each category for a specific day and shift. In the **Sheet**, the coverage row shows which category is missing.
 - If you ask for more people of a category (or higher) than exist, the "Staffing" warning appears.
 - Deleting a category moves its employees to the remaining lowest-rank category and discards the minimums that mentioned it.
+
+## Breaks within the shift
+
+Off by default. When you enable **Breaks within the shift** in the settings, an assignment that lasts **more than X hours** (6 by default) includes a **break of Y minutes** (15 by default).
+
+- The break is **not counted as worked time**: it is subtracted from the employee's weekly hours (and so from their target, the weekly limit and the global total). A 08:00–16:00 shift counts as 7.75 h with a 15 min break.
+- It is evaluated **per assignment**: each assignment (employee + shift + start–end) is measured on its own. If you split a shift by hand into several shorter assignments, each one is checked separately.
+- The break happens **inside** the shift, so coverage and the minimum rest between shifts still use the full times. The generator takes the break into account when it adds up hours.
+- It is shown with a ☕ mark and the minutes in the Sheet cells, the Edit view, the shift popup and the cell editor, plus a legend entry. It is text as well as an icon, so it also reads when printed in black and white.
 
 ## Blocked shifts
 
@@ -163,6 +173,7 @@ This is the format the application exports and imports (see `examples/example-10
     "daysOffPerEmployee": 1,
     "contractDaysPerWeek": 5,
     "minRestHours": 12,
+    "breaks": { "enabled": false, "afterHours": 6, "minutes": 15 },  // optional; unpaid break in long assignments
     "categories": [
       { "id": "manager",     "name": "Manager",     "rank": 3 },
       { "id": "salesperson", "name": "Salesperson", "rank": 2 },

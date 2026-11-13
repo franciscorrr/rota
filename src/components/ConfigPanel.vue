@@ -84,6 +84,31 @@ function onShiftTimeChange(shift, property, event) {
     </label>
   </div>
 
+  <fieldset class="breaks">
+    <legend>{{ t('config.breaks') }}</legend>
+    <label class="check">
+      <input v-model="settings.breaks.enabled" type="checkbox" />
+      {{ t('config.breaks') }}
+    </label>
+    <small>{{ t('config.breaksHint') }}</small>
+    <div class="grid-form">
+      <label class="field">
+        <span>{{ t('config.breaksAfterHours') }}</span>
+        <NumberInput v-model="settings.breaks.afterHours" :min="0.5" :step="0.5" :disabled="!settings.breaks.enabled" />
+      </label>
+      <label class="field">
+        <span>{{ t('config.breaksMinutes') }}</span>
+        <NumberInput
+          v-model="settings.breaks.minutes"
+          :min="0"
+          :step="5"
+          :integer="true"
+          :disabled="!settings.breaks.enabled"
+        />
+      </label>
+    </div>
+  </fieldset>
+
   <div class="field">
     <span>{{ t('config.openDays') }}</span>
     <div class="days">

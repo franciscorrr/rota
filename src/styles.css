@@ -319,6 +319,18 @@ thead th {
   color: var(--error);
 }
 
+.break-mark {
+  font-size: 0.85em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.badge.break {
+  background: var(--work-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
 .badge {
   font-size: 0.75rem;
   font-style: normal;
@@ -633,6 +645,17 @@ tr.warn-row td {
 
 .swatch.blocked {
   background: repeating-linear-gradient(45deg, var(--warn-bg) 0 4px, var(--surface) 4px 8px);
+}
+
+.swatch.break {
+  background: var(--work-bg);
+  font-size: 0.75em;
+  line-height: 1.1em;
+  text-align: center;
+}
+
+.swatch.break::before {
+  content: '☕';
 }
 
 .swatch.bad {

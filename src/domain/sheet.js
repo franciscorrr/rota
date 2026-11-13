@@ -5,13 +5,14 @@ import { createTranslator, shiftLabel, translate } from './i18n.js';
 import {
   DIFF_TOLERANCE,
   SHIFT_KEYS,
-  assignmentHours,
+  breakMinutesOf,
   categoryList,
   categoryOf,
   coverageGap,
   describeMissing,
   diffStatusOf,
   isShiftBlocked,
+  netAssignmentHours,
   openDayList,
   requiredByCategory,
   round2,
@@ -70,16 +71,17 @@ function categoriesWithNeed(settings, need, gap) {
 
 /** Cell without an assigned shift: absence, block or empty. */
 function createIdleCell(kind, lines) {
-  return { kind, lines, hours: 0, bad: false, assignmentIds: [] };
+  return { kind, lines, hours: 0, breakMinutes: 0, bad: false, assignmentIds: [] };
 }
 
 /** Cell with a shift: an employee's assignments on a day and shift (at least one). */
-function createWorkCell(ownAssignments, badIds) {
+function createWorkCell(ownAssignments, badIds, settings) {
   const sorted = sortedByStart(ownAssignments);
   return {
     kind: 'work',
     lines: sorted.map((assignment) => timeRange(assignment.start, assignment.end)),
-    hours: sorted.reduce((sum, assignment) => sum + Math.max(0, assignmentHours(assignment)), 0),
+    hours: sorted.reduce((sum, assignment) => sum + netAssignmentHours(settings, assignment), 0),
+    breakMinutes: sorted.reduce((sum, assignment) => sum + breakMinutesOf(settings, assignment), 0),
     bad: sorted.some((assignment) => badIds.has(assignment.id)),
     assignmentIds: sorted.map((assignment) => assignment.id),
   };
@@ -92,7 +94,7 @@ function buildEmployeeCell(employee, column, { settings, assignments, badIds }) 
     && assignment.day === column.day
     && assignment.shift === column.shift
   ));
-  if (own.length > 0) return createWorkCell(own, badIds);
+  if (own.length > 0) return createWorkCell(own, badIds, settings);
   if ((employee.absences ?? []).includes(column.day)) {
     return createIdleCell('absent', [translate(settings.locale, 'sheet.absent')]);
   }
@@ -220,7 +222,9 @@ function describeEmployeeCell(row, cell, column, locale) {
   if (cell.kind === 'empty') return t('sheet.describeEmpty', { name: row.name, where });
 
   const brokenRule = cell.bad ? t('sheet.describeBad') : '';
-  return t('sheet.describeWork', {
+  const key = cell.breakMinutes > 0 ? 'sheet.describeWorkBreak' : 'sheet.describeWork';
+  return t(key, {
+    minutes: cell.breakMinutes,
     name: row.name,
     where,
     times: cell.lines.join(t('sheet.joinAnd')),
@@ -280,7 +284,8 @@ export function shiftDetail({ settings, employees, overrides, assignments, badId
       category: employee ? (categoryOf(employee, settings)?.name ?? '') : '',
       start: assignment.start,
       end: assignment.end,
-      hours: round2(Math.max(0, assignmentHours(assignment))),
+      hours: round2(netAssignmentHours(settings, assignment)),
+      breakMinutes: breakMinutesOf(settings, assignment),
       bad: badIds.has(assignment.id),
     };
   });
@@ -329,6 +334,7 @@ export function cellDetail({ settings, employees, assignments, badIds = new Set(
       id: assignment.id,
       start: assignment.start,
       end: assignment.end,
+      breakMinutes: breakMinutesOf(settings, assignment),
       bad: badIds.has(assignment.id),
     })),
   };

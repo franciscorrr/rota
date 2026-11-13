@@ -13,6 +13,7 @@ const LEGEND = [
   { swatch: 'work', key: 'sheet.legendWork' },
   { swatch: 'absent', key: 'sheet.legendAbsent' },
   { swatch: 'blocked', key: 'sheet.legendBlocked' },
+  { swatch: 'break', key: 'sheet.legendBreak' },
   { swatch: 'bad', key: 'sheet.legendBad' },
 ];
 
@@ -117,6 +118,11 @@ function onKeydown(event) {
               @focus="selected = { r: rowIndex, c: columnIndex }"
             >
               <div v-for="line in cell.lines" :key="line">{{ line }}</div>
+              <div
+                v-if="cell.breakMinutes > 0"
+                class="break-mark"
+                :title="t('sheet.badgeBreak', { minutes: cell.breakMinutes })"
+              >☕ {{ t('sheet.breakMark', { minutes: cell.breakMinutes }) }}</div>
             </td>
             <td class="num">{{ row.contract }} h</td>
             <td class="num">{{ row.target }} h</td>

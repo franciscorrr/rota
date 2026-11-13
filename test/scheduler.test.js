@@ -2,12 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   assignmentHours,
+  breakMinutesOf,
   coverageGap,
   defaultSettings,
   describeMissing,
   generate,
   generateShift,
   isShiftBlocked,
+  netAssignmentHours,
   requiredByCategory,
   sanitizeRequired,
   targetHours,
@@ -428,4 +430,51 @@ test('describeMissing: joins with commas and the language conjunction, and says 
   const english = testSettings(WEEK, 'en');
   const englishGap = coverageGap(english, { encargado: 1, mozo: 1 }, {});
   assert.equal(describeMissing(english, englishGap), '1 Manager and 1 Stock assistant');
+});
+
+// ---------- Breaks within the shift ----------
+
+const withBreaks = (patch = {}) => settingsWith({ breaks: { enabled: true, afterHours: 6, minutes: 15 }, ...patch });
+const at = (start, end) => ({ id: 'x', employeeId: 'e1', day: MON, shift: 'morning', start, end });
+
+test('breaks: disabled by default, net hours equal gross hours', () => {
+  const settings = testSettings();
+  assert.equal(settings.breaks.enabled, false);
+  assert.equal(breakMinutesOf(settings, at('09:00', '17:00')), 0);
+  assert.equal(netAssignmentHours(settings, at('09:00', '17:00')), 8);
+});
+
+test('breaks: only an assignment longer than the threshold has a break, which is not counted', () => {
+  const settings = withBreaks();
+  assert.equal(breakMinutesOf(settings, at('09:00', '15:00')), 0, 'exactly X h: no break');
+  assert.equal(breakMinutesOf(settings, at('09:00', '15:01')), 15);
+  assert.equal(netAssignmentHours(settings, at('09:00', '17:00')), 7.75);
+  assert.equal(netAssignmentHours(withBreaks({ breaks: { enabled: true, afterHours: 1, minutes: 120 } }), at('09:00', '11:00')), 0);
+});
+
+test('breaks: validate() counts net hours per employee and in the global total; coverage and rest stay gross', () => {
+  const settings = withBreaks({ shifts: {
+    morning: { start: '08:00', end: '16:00', required: { mozo: 1 } },
+    afternoon: { start: '16:00', end: '22:00', required: {} },
+  } });
+  const employees = makeEmployees(1, 30);
+  const assignments = [{ id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '08:00', end: '16:00' }];
+  const { stats, warnings } = validate(settings, employees, {}, assignments);
+  assert.equal(stats.employees[0].assigned, 7.75);
+  assert.equal(stats.totalAssigned, 7.75);
+  const mondayMorning = warnings.filter((w) => w.type === 'unfilled' && w.day === MON && w.shift === 'morning');
+  assert.deepEqual(mondayMorning, [], 'a full shift with a break still covers the place');
+  const off = validate({ ...settings, breaks: { ...settings.breaks, enabled: false } }, employees, {}, assignments);
+  assert.equal(off.stats.employees[0].assigned, 8);
+});
+
+test('breaks: generate() books net hours, consistent with validate()', () => {
+  const settings = withBreaks({ weeklyCap: 400 });
+  const employees = makeEmployees(6);
+  const { assignments, stats } = generate(settings, employees);
+  const validated = validate(settings, employees, {}, assignments).stats;
+  assert.equal(stats.totalAssigned, validated.totalAssigned);
+  assert.ok(assignments.length > 0);
+  // 6 h shifts are not longer than 6 h: same schedule as with the option off.
+  assert.equal(assignments.length, generate(settingsWith({ weeklyCap: 400 }), employees).assignments.length);
 });

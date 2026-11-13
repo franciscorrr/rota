@@ -139,6 +139,19 @@ function normalizeShift(rawShift, defaultShift, settings) {
   };
 }
 
+/** Break settings: `enabled` must be a real boolean; the threshold and the length must be sensible numbers. */
+function normalizeBreaks(rawBreaks, defaults) {
+  const raw = isObject(rawBreaks) ? rawBreaks : {};
+  const afterHours = numberOr(raw.afterHours, defaults.afterHours);
+  const minutes = numberOr(raw.minutes, defaults.minutes);
+  const isValid = afterHours > 0 && minutes < afterHours * 60;
+  return {
+    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : defaults.enabled,
+    afterHours: isValid ? afterHours : defaults.afterHours,
+    minutes: isValid ? minutes : defaults.minutes,
+  };
+}
+
 /**
  * @param {*} rawSettings
  * @param {object} defaults Default settings (the base for whatever is missing).
@@ -160,6 +173,7 @@ function normalizeSettings(rawSettings, defaults, fallbackLocale) {
     daysOffPerEmployee: Math.floor(numberOr(raw.daysOffPerEmployee, defaults.daysOffPerEmployee)),
     contractDaysPerWeek: Math.max(1, Math.floor(numberOr(raw.contractDaysPerWeek, defaults.contractDaysPerWeek, 1))),
     minRestHours: numberOr(raw.minRestHours, defaults.minRestHours),
+    breaks: normalizeBreaks(raw.breaks, defaults.breaks),
     categories: normalizeCategories(raw.categories, locale),
     shifts: {},
   };

@@ -96,3 +96,15 @@ test('assignments: the legacy "partial" flag in imported or stored data is dropp
     { id: 'a1', employeeId: 'e1', day: '2026-11-16', shift: 'morning', start: '10:00', end: '15:00' },
   ]);
 });
+
+test('breaks: default off; invalid values fall back to the defaults', () => {
+  assert.deepEqual(defaultState().settings.breaks, { enabled: false, afterHours: 6, minutes: 15 });
+  assert.deepEqual(normalizeState({ settings: { weekStart: '2026-11-16' } }).settings.breaks,
+    { enabled: false, afterHours: 6, minutes: 15 });
+  const valid = normalizeState({ settings: { breaks: { enabled: true, afterHours: 5, minutes: 20 } } });
+  assert.deepEqual(valid.settings.breaks, { enabled: true, afterHours: 5, minutes: 20 });
+  const invalid = normalizeState({ settings: { breaks: { enabled: 'yes', afterHours: -1, minutes: 'x' } } });
+  assert.deepEqual(invalid.settings.breaks, { enabled: false, afterHours: 6, minutes: 15 });
+  const tooLong = normalizeState({ settings: { breaks: { enabled: true, afterHours: 1, minutes: 90 } } });
+  assert.deepEqual(tooLong.settings.breaks, { enabled: true, afterHours: 6, minutes: 15 });
+});

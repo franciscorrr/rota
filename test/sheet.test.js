@@ -212,7 +212,7 @@ test('cellDetail: cell assignments and whether one can be added', () => {
   assert.equal(work.title, 'Ana · Lunes 16/11 · Mañana');
   assert.equal(work.category, 'Mozo');
   assert.deepEqual([work.shiftStart, work.shiftEnd, work.canAdd], ['09:00', '15:00', true]);
-  assert.deepEqual(work.assignments, [{ id: 'a1', start: '09:00', end: '12:00', bad: false }]);
+  assert.deepEqual(work.assignments, [{ id: 'a1', start: '09:00', end: '12:00', breakMinutes: 0, bad: false }]);
   assert.equal(cellDetail(input, 'e1', MON, 'afternoon').blocked, true);
   assert.equal(cellDetail(input, 'e1', MON, 'afternoon').canAdd, false);
   const absent = cellDetail(input, 'e1', TUE, 'afternoon');
@@ -220,4 +220,26 @@ test('cellDetail: cell assignments and whether one can be added', () => {
   // An existing assignment on an absence day can still be edited/removed.
   assert.deepEqual(cellDetail(input, 'e1', TUE, 'morning').assignments.map((a) => [a.id, a.bad]), [['a2', true]]);
   assert.equal(cellDetail(input, 'zz', MON, 'morning'), null);
+});
+
+test('breaks: cells and details show the break, with net hours', () => {
+  const settings = sheetSettings();
+  settings.breaks = { enabled: true, afterHours: 6, minutes: 15 };
+  const employees = [emp('e1', 'Ana'), emp('e2', 'Luis')];
+  const assignments = [
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' }, // exactly 6 h: no break
+    { id: 'a2', employeeId: 'e1', day: TUE, shift: 'morning', start: '08:00', end: '15:00' }, // 7 h: break
+  ];
+  const { model } = setup({ employees, assignments, settings });
+  const [monday, tuesday] = [model.rows[0].cells[0], model.rows[0].cells[2]];
+  assert.deepEqual([monday.hours, monday.breakMinutes], [6, 0]);
+  assert.deepEqual([tuesday.hours, tuesday.breakMinutes], [6.75, 15]);
+  assert.match(describeCell(model, 0, 2), /15 min/);
+  assert.doesNotMatch(describeCell(model, 0, 0), /descanso/);
+  assert.equal(model.rows[0].assigned, 12.75);
+  assert.equal(model.totals.assigned, 12.75);
+
+  const input = { settings, employees, assignments, overrides: {} };
+  assert.deepEqual(shiftDetail(input, TUE, 'morning').assignments.map((a) => [a.hours, a.breakMinutes]), [[6.75, 15]]);
+  assert.equal(cellDetail(input, 'e1', TUE, 'morning').assignments[0].breakMinutes, 15);
 });

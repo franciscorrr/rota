@@ -103,6 +103,11 @@ function generate() {
     <ul class="assigned">
       <li v-for="assignment in detail.assignments" :key="assignment.id" :class="{ bad: assignment.bad }">
         <span>{{ assignment.name }} {{ assignment.start }}–{{ assignment.end }}</span>
+        <span
+          v-if="assignment.breakMinutes > 0"
+          class="break-mark"
+          :title="t('sheet.badgeBreak', { minutes: assignment.breakMinutes })"
+        >☕ {{ t('sheet.breakMark', { minutes: assignment.breakMinutes }) }}</span>
         <button
           type="button"
           class="icon no-print"
