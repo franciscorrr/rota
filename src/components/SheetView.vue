@@ -82,6 +82,7 @@ function onKeydown(event) {
     <div class="sheet-wrap">
       <table ref="table" class="sheet" role="grid" :aria-label="t('sheet.aria')" @keydown="onKeydown">
         <thead>
+          <!-- First header row: days -->
           <tr>
             <th class="corner" rowspan="2" scope="col">{{ t('sheet.employee') }}</th>
             <th v-for="group in model.dayGroups" :key="group.day" class="day" :colspan="group.span" scope="colgroup">
@@ -91,6 +92,7 @@ function onKeydown(event) {
               {{ t(title) }}
             </th>
           </tr>
+          <!-- Second header row: shifts -->
           <tr>
             <th v-for="column in model.columns" :key="column.day + column.shift" class="shift" scope="col">
               <button
@@ -118,11 +120,13 @@ function onKeydown(event) {
               @focus="selected = { r: rowIndex, c: columnIndex }"
             >
               <div v-for="line in cell.lines" :key="line">{{ line }}</div>
-              <small
+              <small v-if="cell.kind === 'work'" class="cell-hours">{{ t('sheet.cellHours', { hours: cell.hours }) }}</small>
+              <span
                 v-if="cell.breakMinutes > 0"
                 class="break-mark"
-                :title="t('sheet.badgeBreak', { minutes: cell.breakMinutes })"
-              >☕ {{ t('sheet.breakMark', { minutes: cell.breakMinutes }) }}</small>
+                role="img"
+                :aria-label="t('sheet.badgeBreak', { minutes: cell.breakMinutes })"
+              >☕</span>
             </td>
             <td class="num">{{ row.contract }} h</td>
             <td class="num">{{ row.target }} h</td>
@@ -131,6 +135,13 @@ function onKeydown(event) {
           </tr>
         </tbody>
         <tfoot>
+          <tr class="hours-row">
+            <th class="name" scope="row">{{ t('sheet.hoursRow') }}</th>
+            <td v-for="(hours, columnIndex) in model.shiftHours" :key="columnIndex" class="shift-hours">
+              {{ t('sheet.cellHours', { hours }) }}
+            </td>
+            <td colspan="4"></td>
+          </tr>
           <tr>
             <th class="name" scope="row">{{ t('sheet.coverageRow') }}</th>
             <td
@@ -274,6 +285,15 @@ function onKeydown(event) {
   border-top: 2px solid var(--line);
 }
 
+.sheet tfoot tr + tr th,
+.sheet tfoot tr + tr td {
+  border-top: none;
+}
+
+.sheet td.shift-hours {
+  font-weight: 600;
+}
+
 /* Cells */
 .sheet td.cell,
 .sheet td.cover {
@@ -290,6 +310,26 @@ function onKeydown(event) {
 
 .sheet td.num {
   white-space: nowrap;
+}
+
+/* Net hours of the cell (breaks already subtracted). */
+.sheet .cell-hours {
+  display: block;
+  font-weight: 600;
+}
+
+/* Discreet break icon in the corner: it is out of the flow, so it takes no space. */
+.sheet td.cell {
+  position: relative;
+}
+
+.sheet td.cell .break-mark {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-size: 0.7em;
+  line-height: 1;
+  opacity: 0.75;
 }
 
 .sheet td.work {

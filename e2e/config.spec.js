@@ -84,7 +84,7 @@ test('changing the language translates the interface and survives a reload', asy
   await expect(page.getByRole('button', { name: 'Generate schedule' })).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
   await expect(page.locator('.summary')).toContainText('Planned hours');
-  await expect(page.locator('.sheet tfoot th').first()).toContainText('Coverage');
+  await expect(page.locator('.sheet tfoot tr:last-child th')).toContainText('Coverage');
   await expect(page.locator('.status')).toContainText('Language changed to English');
 
   await page.reload();
@@ -131,7 +131,7 @@ test('breaks within the shift: off by default, shown on long shifts and kept aft
   await expect(toggle).not.toBeChecked();
   await expect(afterHours).toBeDisabled();
   await expect(page.locator('.break-mark')).toHaveCount(0);
-  const hoursWithoutBreaks = await page.locator('.sheet tfoot td.num').nth(2).innerText();
+  const hoursWithoutBreaks = await page.locator('.sheet tfoot tr:last-child td.num').nth(2).innerText();
 
   // The example shifts last 6 h: with a 5 h threshold every assignment includes the break.
   await toggle.check();
@@ -140,9 +140,18 @@ test('breaks within the shift: off by default, shown on long shifts and kept aft
   await minutes.fill('30');
   await minutes.dispatchEvent('change');
 
-  await expect(page.locator('td.cell.work .break-mark').first()).toContainText('30 min');
+  // The table only shows an icon; the minutes are in the cell editor popup.
+  const markedCell = page.locator('td.cell.work', { has: page.locator('.break-mark') }).first();
+  await expect(markedCell.locator('.break-mark')).not.toContainText('min');
+  await expect(markedCell.locator('.cell-hours')).toHaveText('5.5 h');
+  await markedCell.click();
+  await expect(page.getByRole('dialog').getByText('30 min')).toBeVisible();
+  await expect(page.getByRole('dialog')).toContainText('Total en este turno: 5.5 h');
+  await page.keyboard.press('Escape');
+  // The footer row shows the net hours of each shift.
+  await expect(page.locator('.sheet tfoot td.shift-hours').first()).toHaveText(/^\d+(\.\d+)? h$/);
   await expect(page.locator('.legend')).toContainText('Incluye descanso');
-  await expect(page.locator('.sheet tfoot td.num').nth(2)).not.toHaveText(hoursWithoutBreaks);
+  await expect(page.locator('.sheet tfoot tr:last-child td.num').nth(2)).not.toHaveText(hoursWithoutBreaks);
 
   await page.reload();
   await expect(page.getByRole('checkbox', { name: 'Descansos dentro del turno' })).toBeChecked();
@@ -150,5 +159,5 @@ test('breaks within the shift: off by default, shown on long shifts and kept aft
 
   await page.getByRole('checkbox', { name: 'Descansos dentro del turno' }).uncheck();
   await expect(page.locator('.break-mark')).toHaveCount(0);
-  await expect(page.locator('.sheet tfoot td.num').nth(2)).toHaveText(hoursWithoutBreaks);
+  await expect(page.locator('.sheet tfoot tr:last-child td.num').nth(2)).toHaveText(hoursWithoutBreaks);
 });

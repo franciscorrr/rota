@@ -59,6 +59,7 @@ function remove(assignmentId) {
     <p class="hint">{{ shiftRange }}</p>
 
     <template v-if="rows.length > 0">
+      <p class="cell-total">{{ t('cellEditor.totalHours', { hours: detail.hours }) }}</p>
       <div v-for="row in rows" :key="row.id" class="row" :class="{ error: row.bad }">
         <input v-model="row.start" type="time" :aria-label="t('cellEditor.startAria')" class="time" />
         –
@@ -85,3 +86,9 @@ function remove(assignmentId) {
     </footer>
   </DialogBox>
 </template>
+
+<style scoped>
+.cell-total {
+  font-weight: 600;
+}
+</style>

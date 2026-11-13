@@ -36,6 +36,21 @@ test('adding and removing someone from a shift', async ({ page }) => {
   await expect(assigned).toHaveCount(before);
 });
 
+test('assigned times are edited inline and an invalid range is rejected', async ({ page }) => {
+  const cell = await firstEditCell(page);
+  const row = cell.locator('ul.assigned li').first();
+  const start = row.getByLabel(/^Inicio de /);
+  const end = row.getByLabel(/^Fin de /);
+  const previousStart = await start.inputValue();
+
+  await end.fill('23:00');
+  await expect(end).toHaveValue('23:00');
+
+  await start.fill('23:30');
+  await expect(page.locator('.status')).toContainText('posterior');
+  await expect(start).toHaveValue(previousStart);
+});
+
 test('adding without choosing an employee warns in the status bar', async ({ page }) => {
   const cell = await firstEditCell(page);
   await cell.getByRole('button', { name: 'Añadir' }).click();

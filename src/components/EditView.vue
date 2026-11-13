@@ -1,11 +1,10 @@
 <script setup>
-// Edit view: one cell per day and shift where the minimum staff is changed, people are removed or
-// added and the shift is generated automatically.
+// Edit view: one cell per day and shift, each with a ShiftEditor.
 import { computed } from 'vue';
 import { SHIFT_KEYS, openDayList } from '../domain/scheduler.js';
 import { daysBetween } from '../domain/time.js';
 import { state, t, translateDay, translateShift } from '../state.js';
-import EditCell from './EditCell.vue';
+import ShiftEditor from './ShiftEditor.vue';
 
 const settings = computed(() => state.value.settings);
 const days = computed(() => openDayList(settings.value));
@@ -26,7 +25,9 @@ const days = computed(() => openDayList(settings.value));
       <tbody>
         <tr v-for="day in days" :key="day">
           <th scope="row">{{ translateDay(daysBetween(settings.weekStart, day)) }} <small>{{ day }}</small></th>
-          <EditCell v-for="shiftKey in SHIFT_KEYS" :key="shiftKey" :day="day" :shift-key="shiftKey" />
+          <td v-for="shiftKey in SHIFT_KEYS" :key="shiftKey">
+            <ShiftEditor :day="day" :shift-key="shiftKey" />
+          </td>
         </tr>
       </tbody>
     </table>

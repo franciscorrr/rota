@@ -38,7 +38,8 @@
 }
 
 .row > *,
-td > * {
+td > *,
+.shift-editor > * {
   --pico-spacing: 0;
 }
 

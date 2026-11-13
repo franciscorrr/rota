@@ -80,7 +80,7 @@ function createWorkCell(ownAssignments, badIds, settings) {
   return {
     kind: 'work',
     lines: sorted.map((assignment) => timeRange(assignment.start, assignment.end)),
-    hours: sorted.reduce((sum, assignment) => sum + netAssignmentHours(settings, assignment), 0),
+    hours: round2(sorted.reduce((sum, assignment) => sum + netAssignmentHours(settings, assignment), 0)),
     breakMinutes: sorted.reduce((sum, assignment) => sum + breakMinutesOf(settings, assignment), 0),
     bad: sorted.some((assignment) => badIds.has(assignment.id)),
     assignmentIds: sorted.map((assignment) => assignment.id),
@@ -193,7 +193,12 @@ export function buildSheet({ settings, employees, overrides, assignments, stats,
     assigned: sumRows(rows, 'assigned'),
   };
 
-  return { locale: settings.locale, dayGroups, columns, rows, coverage, totals };
+  // Net hours worked by all the employees in each column (breaks already subtracted).
+  const shiftHours = columns.map((_column, columnIndex) => (
+    round2(rows.reduce((sum, row) => sum + row.cells[columnIndex].hours, 0))
+  ));
+
+  return { locale: settings.locale, dayGroups, columns, rows, coverage, shiftHours, totals };
 }
 
 /** Descriptive text of a column's coverage cell. */
@@ -330,6 +335,7 @@ export function cellDetail({ settings, employees, assignments, badIds = new Set(
     absent: reason === 'absent',
     blocked: reason === 'blocked',
     canAdd: reason === null,
+    hours: round2(own.reduce((sum, assignment) => sum + netAssignmentHours(settings, assignment), 0)),
     assignments: own.map((assignment) => ({
       id: assignment.id,
       start: assignment.start,

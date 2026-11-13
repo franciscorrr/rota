@@ -98,18 +98,45 @@ test('the shift popup shows coverage and allows generating the shift', async ({ 
   await page.locator('.shift-head').first().click();
 
   await expect(openDialog(page)).toContainText('Cobertura');
-  await openDialog(page).getByRole('button', { name: 'Generar este turno' }).click();
+  await openDialog(page).getByRole('button', { name: 'Generar turno' }).click();
   await expect(openDialog(page).getByRole('status')).toHaveCount(1);
 });
 
-test('"Edit in Edit view" switches tabs and hides the sheet', async ({ page }) => {
+test('the shift popup edits people and minimums and stays open', async ({ page }) => {
   await openWithSchedule(page);
   await page.locator('.shift-head').first().click();
-  await openDialog(page).getByRole('button', { name: 'Editar en «Edición»' }).click();
+  const popup = openDialog(page);
+  const assigned = popup.locator('ul.assigned li');
+  const before = await assigned.count();
 
-  await expect(page.getByRole('button', { name: 'Edición', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#sheet')).toBeHidden();
-  await expect(page.locator('#grid')).toBeVisible();
+  await popup.getByLabel('Empleado').selectOption({ index: 2 });
+  await popup.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect(assigned).toHaveCount(before + 1);
+  await expect(popup).toBeVisible();
+
+  const end = assigned.first().getByLabel(/^Fin de /);
+  await end.fill('23:00');
+  await expect(end).toHaveValue('23:00');
+  await expect(popup).toBeVisible();
+
+  await assigned.first().getByRole('button').click();
+  await expect(assigned).toHaveCount(before);
+
+  const minimum = popup.locator('.mins input').first();
+  const previous = Number(await minimum.inputValue());
+  await minimum.fill(String(previous + 1));
+  await minimum.dispatchEvent('change');
+  await expect(minimum).toHaveValue(String(previous + 1));
+});
+
+test('the shift popup reports errors inside the popup and blocks unavailable people', async ({ page }) => {
+  await openWithSchedule(page);
+  await page.locator('.shift-head').first().click();
+  const popup = openDialog(page);
+
+  await expect(popup.locator('select option[disabled]').first()).toContainText(/ausente|bloqueado/);
+  await popup.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect(popup.getByRole('status')).toContainText('Elige un empleado');
 });
 
 test('printing always shows the sheet, even from the Edit tab', async ({ page }) => {

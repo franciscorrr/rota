@@ -1,8 +1,14 @@
 <script setup>
-// Edit view cell (a day and a shift): day minimum staff, coverage, button to
-// generate the shift, assigned people and form to add someone.
+// Editor of one day and shift: day minimum staff, coverage, button to generate the shift, assigned
+// people and form to add someone. Shared by the Edit view cells and the shift popup of the sheet.
 import { computed, ref, watch } from 'vue';
-import { addAssignment, generateForShift, removeAssignment, setDayMinimum } from '../domain/actions.js';
+import {
+  addAssignment,
+  generateForShift,
+  removeAssignment,
+  setDayMinimum,
+  updateAssignmentTimes,
+} from '../domain/actions.js';
 import { categoryList, categoryOf, requiredByCategory, unavailabilityReason } from '../domain/scheduler.js';
 import { shiftDetail } from '../domain/sheet.js';
 import { setStatus, sheetInput, state, t } from '../state.js';
@@ -12,6 +18,9 @@ const props = defineProps({
   day: { type: String, required: true },
   shiftKey: { type: String, required: true },
 });
+
+// Every notice also goes to the status bar; `notice` lets a host (the popup) show it too, since a modal covers the bar.
+const emit = defineEmits(['notice']);
 
 const UNAVAILABLE_NOTES = { absent: 'edit.absentNote', blocked: 'edit.blockedNote' };
 
@@ -44,9 +53,14 @@ function employeeLabel(employee) {
   return `${employee.name} · ${categoryOf(employee, settings.value)?.name ?? ''}${note}`;
 }
 
+function notify(message, isError = false) {
+  setStatus(message, isError);
+  emit('notice', { message, isError });
+}
+
 function add() {
   if (!employeeId.value) {
-    setStatus(t.value('status.chooseEmployee'), true);
+    notify(t.value('status.chooseEmployee'), true);
     return;
   }
   const result = addAssignment(state.value, {
@@ -57,21 +71,37 @@ function add() {
     end: end.value,
   });
   if (!result.ok) {
-    setStatus(result.error, true);
+    notify(result.error, true);
     return;
   }
-  setStatus('');
+  notify('');
   resetForm();
+}
+
+/**
+ * Applies a new start or end typed inline on an assigned person. If the range is invalid the state does not change,
+ * so the input is restored by hand (Vue would not re-render it) and the error is shown.
+ */
+function changeTime(assignment, field, event) {
+  const input = event.target;
+  const edit = { id: assignment.id, start: assignment.start, end: assignment.end, [field]: input.value };
+  const result = updateAssignmentTimes(state.value, [edit]);
+  if (result.ok) {
+    notify('');
+    return;
+  }
+  input.value = assignment[field];
+  notify(result.error, true);
 }
 
 function generate() {
   const { message, isError } = generateForShift(state.value, props.day, props.shiftKey);
-  setStatus(message, isError);
+  notify(message, isError);
 }
 </script>
 
 <template>
-  <td>
+  <div class="shift-editor">
     <div class="row cell-head no-print">
       <div class="row mins">
         <label
@@ -97,20 +127,35 @@ function generate() {
 
     <ul class="assigned">
       <li v-for="assignment in detail.assignments" :key="assignment.id" class="row" :class="{ error: assignment.bad }">
-        <span>{{ assignment.name }} {{ assignment.start }}–{{ assignment.end }}</span>
-        <small
-          v-if="assignment.breakMinutes > 0"
-          class="break-mark"
-          :title="t('sheet.badgeBreak', { minutes: assignment.breakMinutes })"
-        >☕ {{ t('sheet.breakMark', { minutes: assignment.breakMinutes }) }}</small>
+        <span>{{ assignment.name }}</span>
+        <input
+          :value="assignment.start"
+          type="time"
+          class="time"
+          :aria-label="t('edit.startOfAria', { name: assignment.name })"
+          @change="changeTime(assignment, 'start', $event)"
+        />
+        –
+        <input
+          :value="assignment.end"
+          type="time"
+          class="time"
+          :aria-label="t('edit.endOfAria', { name: assignment.name })"
+          @change="changeTime(assignment, 'end', $event)"
+        />
         <button
           type="button"
-          class="small outline secondary no-print"
+          class="small danger no-print"
           :aria-label="t('edit.removeAria', { name: assignment.name })"
           @click="removeAssignment(state, assignment.id)"
         >
           ×
         </button>
+        <small
+          v-if="assignment.breakMinutes > 0"
+          class="break-mark"
+          :title="t('sheet.badgeBreak', { minutes: assignment.breakMinutes })"
+        >☕ {{ t('sheet.breakMark', { minutes: assignment.breakMinutes }) }}</small>
       </li>
     </ul>
 
@@ -130,10 +175,16 @@ function generate() {
       <input v-model="end" type="time" :aria-label="t('cellEditor.endAria')" class="time" />
       <button type="button" class="secondary" @click="add">{{ t('edit.add') }}</button>
     </div>
-  </td>
+  </div>
 </template>
 
 <style scoped>
+.shift-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .cell-head {
   justify-content: space-between;
 }

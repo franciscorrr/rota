@@ -238,8 +238,24 @@ test('breaks: cells and details show the break, with net hours', () => {
   assert.doesNotMatch(describeCell(model, 0, 0), /descanso/);
   assert.equal(model.rows[0].assigned, 12.75);
   assert.equal(model.totals.assigned, 12.75);
+  // Footer: net hours of all employees per column (Monday morning 6, Tuesday morning 6.75).
+  assert.deepEqual(model.shiftHours.slice(0, 4), [6, 0, 6.75, 0]);
 
   const input = { settings, employees, assignments, overrides: {} };
   assert.deepEqual(shiftDetail(input, TUE, 'morning').assignments.map((a) => [a.hours, a.breakMinutes]), [[6.75, 15]]);
   assert.equal(cellDetail(input, 'e1', TUE, 'morning').assignments[0].breakMinutes, 15);
+  assert.equal(cellDetail(input, 'e1', TUE, 'morning').hours, 6.75);
+  assert.equal(cellDetail(input, 'e1', MON, 'afternoon').hours, 0);
+});
+
+test('shiftHours adds up the net hours of every employee in each shift', () => {
+  const employees = [emp('e1', 'Ana'), emp('e2', 'Luis')];
+  const assignments = [
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a2', employeeId: 'e2', day: MON, shift: 'morning', start: '10:00', end: '13:30' },
+    { id: 'a3', employeeId: 'e2', day: MON, shift: 'afternoon', start: '15:00', end: '18:00' },
+  ];
+  const { model } = setup({ employees, assignments });
+  assert.equal(model.shiftHours.length, model.columns.length);
+  assert.deepEqual(model.shiftHours.slice(0, 3), [9.5, 3, 0]);
 });
