@@ -237,7 +237,6 @@ function normalizeAssignment(rawAssignment, index) {
     shift: rawAssignment.shift,
     start: rawAssignment.start,
     end: rawAssignment.end,
-    partial: Boolean(rawAssignment.partial),
   };
 }
 

@@ -91,17 +91,17 @@ To say that an employee **cannot** work a specific shift (for example, "Saturday
 The result can be seen in two ways, with the **Sheet** and **Edit** tabs:
 
 - **Sheet** (default, editable): spreadsheet style, with one employee per row and the morning/afternoon shift of each day in columns.
-  - Cells show the shift (extra shifts are marked) or "Absent".
+  - Cells show the shift times or "Absent".
   - At the end of each row you see contract, target, assigned hours and the difference (`OK`, `+X h` or `−X h`).
-  - The last row shows the coverage of each shift against the staffing; an extra shift counts as a fraction of a place, so `3.33/3` can appear.
+  - The last row shows the coverage of each shift against the staffing; a shift shorter than the full one counts as a fraction of a place, so `3.33/3` can appear.
   - The table adapts to the screen width: cells and type shrink and times wrap onto two lines, so it fits entirely without horizontal scroll from about 960 px wide. On narrower screens (mobile) it scrolls horizontally.
   - The header and the name column stay fixed while scrolling.
-  - **Edit shifts from the table itself:** click a cell (or press `Enter`/`F2` with the keyboard) to open its editor. In an empty cell you choose the start and end time (the full shift by default) and press **Add**; in a cell with a shift you can change the times and **Save**, or **Remove** the shift. If the range does not match the full shift it is marked as an extra shift. Changes are saved and revalidated immediately, just like in the Edit view.
+  - **Edit shifts from the table itself:** click a cell (or press `Enter`/`F2` with the keyboard) to open its editor. In an empty cell you choose the start and end time (the full shift by default) and press **Add**; in a cell with a shift you can change the times and **Save**, or **Remove** the shift. Changes are saved and revalidated immediately, just like in the Edit view.
   - You cannot add a shift for someone who is absent that day or has that shift blocked (the editor explains why); what they already have assigned can still be changed or removed. Absences and blocks are still edited in the employee table.
-  - **Shift details:** click a shift header (e.g. "Morning 09:00–15:00") or its coverage cell to see, in a popup, the same data the Edit view shows for that shift: coverage, minimum staff per category (marking the ones changed for that day) and who is assigned, with extra shifts and rule violations flagged. The popup includes **Generate this shift** (see "Generating a single shift"). It closes with "Close", `Esc` or a click outside; "Edit in Edit view" takes you to that tab.
+  - **Shift details:** click a shift header (e.g. "Morning 09:00–15:00") or its coverage cell to see, in a popup, the same data the Edit view shows for that shift: coverage, minimum staff per category (marking the ones changed for that day) and who is assigned, with rule violations flagged. The popup includes **Generate this shift** (see "Generating a single shift"). It closes with "Close", `Esc` or a click outside; "Edit in Edit view" takes you to that tab.
   - Select a cell with the mouse or the arrow keys (also `Home`/`End`) to see its details above the table.
-  - Cells that break a rule appear in red. No state depends on colour alone: there is text ("Absent", "extra", `−X h`).
-- **Edit**: add and remove employees from each shift, with custom times for extra shifts, and change the minimum staff of each day. Extra shifts are only created by hand (here or in the Sheet), never by generating. Each cell has a **Generate shift** button (see "Generating a single shift").
+  - Cells that break a rule appear in red. No state depends on colour alone: there is text ("Absent", "breaks a rule", `−X h`).
+- **Edit**: add and remove employees from each shift, with custom times for shifts shorter than the full one, and change the minimum staff of each day. Custom times are only set by hand (here or in the Sheet), never by generating. Each cell has a **Generate shift** button (see "Generating a single shift").
 
 Changes made in **Edit** are immediately reflected in the **Sheet**, and vice versa: both views share the same state.
 
@@ -112,7 +112,7 @@ Changes made in **Edit** are immediately reflected in the **Sheet**, and vice ve
    - They are eligible if they are not absent that day and have enough hours left for the shift.
    - They must respect the minimum rest with any other shift of theirs and with the last shift of the previous week.
    - They must not exceed their maximum work days (opening days − days off).
-3. **Extra shifts: by hand only.** The generator **does not** create partial extra shifts: it only assigns full shifts. Contracted hours that do not fit into full shifts remain as an "under target" warning, and the organizer decides where to add an extra shift, from the **Sheet** (clicking the cell) or from the **Edit** view: choose the employee in the shift, change the start and end time and press **Add**; if the range differs from the full shift, it is marked as an extra shift.
+3. **Shorter shifts: by hand only.** The generator only assigns full shifts. Contracted hours that do not fit into full shifts remain as an "under target" warning, and the organizer decides where to add a shorter shift, from the **Sheet** (clicking the cell) or from the **Edit** view: choose the employee in the shift, change the start and end time and press **Add**; if the range differs from the full shift, it is marked as an extra shift.
 4. **Validation**: warnings are recalculated after generating and after every manual edit. Rule violations appear in red, and hour or coverage mismatches in amber.
 
 ### Generating a single shift
@@ -120,9 +120,9 @@ Changes made in **Edit** are immediately reflected in the **Sheet**, and vice ve
 The **Generate shift** button (in each Edit view cell) and **Generate this shift** (in the popup of a shift header in the **Sheet**) run the generator only for that day and shift:
 
 - **It touches nothing else**: every other assignment stays exactly as it is.
-- **It keeps what is already in that shift** (including manual assignments and extra shifts) and **only adds what is missing** to meet the minimum staff. If the shift is already covered, it does nothing. To redo a whole shift, first remove the people from that shift and press the button again.
+- **It keeps what is already in that shift** (including manual assignments, whatever their times) and **only adds what is missing** to meet the minimum staff. If the shift is already covered, it does nothing. To redo a whole shift, first remove the people from that shift and press the button again.
 - It takes into account what is already assigned in the rest of the week: absences, blocks, minimum rest, days off and the hours each employee has left towards their target.
-- It only adds full shifts, never extra shifts. If nobody is eligible, it says so: "still missing 1 Manager", and leaves the shift as it is.
+- It only adds full shifts. If nobody is eligible, it says so: "still missing 1 Manager", and leaves the shift as it is.
 - It does not ask for confirmation because it is additive; the status bar (or the popup itself) shows who was added.
 
 ### Warnings
@@ -145,7 +145,7 @@ The **Generate shift** button (in each Edit view cell) and **Generate this shift
 - Days off are counted only among opening days: with Sunday closed and 1 day off, each employee actually rests 2 days. Check the minimum required by your collective agreement; the app does not assume any rule.
 - The generator is greedy: it does not look for the optimal distribution and may leave someone below their target even when a better solution exists. Warnings and manual editing help correct it.
 - Shifts cannot cross midnight.
-- Coverage per category counts fractions: two Manager extra shifts from 09:00 to 12:00 add up to "1 Manager" even when there is nobody from 12:00 to 15:00. Review extra shifts of high categories by hand.
+- Coverage per category counts fractions: two Manager shifts from 09:00 to 12:00 add up to "1 Manager" even when there is nobody from 12:00 to 15:00. Review shorter shifts of high categories by hand.
 - Blocks are recurring: there are no single-week blocks (use absences for that).
 - Changing the week clears the schedule and the day templates (absences are stored by date and are kept).
 
@@ -184,7 +184,7 @@ This is the format the application exports and imports (see `examples/example-10
   "overrides": { "2026-11-21|morning": { "mozo": 2 } },  // minimum per day and shift (only the listed categories)
   "assignments": [
     { "id": "a1", "employeeId": "e1", "day": "2026-11-16", "shift": "morning",
-      "start": "09:00", "end": "15:00", "partial": false }
+      "start": "09:00", "end": "15:00" }
   ]
 }
 ```

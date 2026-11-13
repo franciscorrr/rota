@@ -56,30 +56,28 @@ test('without categories the sheet still renders the rows and empty coverage', (
   assert.ok(warnings.some((warning) => warning.type === 'config'));
 });
 
-test('cells tell shifts, absences and empty slots apart; extra shifts are marked', () => {
+test('cells tell shifts, absences and empty slots apart; shorter shifts keep their hours', () => {
   const employees = [emp('e1', 'Ana', 10, [TUE])];
   const assignments = [
-    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00', partial: false },
-    { id: 'a2', employeeId: 'e1', day: '2026-11-18', shift: 'afternoon', start: '15:00', end: '19:00', partial: true },
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a2', employeeId: 'e1', day: '2026-11-18', shift: 'afternoon', start: '15:00', end: '19:00' },
   ];
   const { model } = setup({ employees, assignments });
   const cells = model.rows[0].cells;
   assert.equal(cells[0].kind, 'work');
   assert.deepEqual(cells[0].lines, ['09:00–15:00']);
-  assert.equal(cells[0].partial, false);
   assert.equal(cells[1].kind, 'empty'); // lunes tarde
   assert.equal(cells[2].kind, 'absent'); // Tuesday morning
   assert.equal(cells[3].kind, 'absent'); // martes tarde
   const wedAfternoon = cells[5];
   assert.equal(wedAfternoon.kind, 'work');
-  assert.equal(wedAfternoon.partial, true);
   assert.equal(wedAfternoon.hours, 4);
 });
 
 test('totals per employee and difference from the target', () => {
   const employees = [emp('e1', 'Ana', 40, [MON, TUE])]; // objetivo 40 - 16 = 24
   const assignments = [
-    { id: 'a1', employeeId: 'e1', day: '2026-11-18', shift: 'morning', start: '09:00', end: '15:00', partial: false },
+    { id: 'a1', employeeId: 'e1', day: '2026-11-18', shift: 'morning', start: '09:00', end: '15:00' },
   ];
   const { model } = setup({ employees, assignments });
   const row = model.rows[0];
@@ -98,7 +96,7 @@ test('the coverage row compares covered places with the staffing (with overrides
   const employees = [emp('e1', 'Ana')];
   const overrides = { [`${MON}|morning`]: { mozo: 1 } };
   const assignments = [
-    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00', partial: false },
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
   ];
   const { model } = setup({ employees, overrides, assignments });
   assert.deepEqual(
@@ -114,8 +112,8 @@ test('the coverage row compares covered places with the staffing (with overrides
 test('assignments that break rules are marked as bad', () => {
   const employees = [emp('e1', 'Ana')];
   const assignments = [
-    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00', partial: false },
-    { id: 'a2', employeeId: 'e1', day: MON, shift: 'afternoon', start: '15:00', end: '21:00', partial: false },
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a2', employeeId: 'e1', day: MON, shift: 'afternoon', start: '15:00', end: '21:00' },
   ];
   const { model } = setup({ employees, assignments });
   const [morning, afternoon] = model.rows[0].cells;
@@ -125,7 +123,7 @@ test('assignments that break rules are marked as bad', () => {
 test('describeCell describes a shift, an absence, an empty slot and coverage', () => {
   const employees = [emp('e1', 'Ana', 10, [TUE])];
   const assignments = [
-    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00', partial: false },
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
   ];
   const { model } = setup({ employees, assignments });
   assert.equal(describeCell(model, 0, 0), 'Ana · Lunes mañana: 09:00–15:00 (6 h)');
@@ -160,9 +158,9 @@ test('sheet coverage tells categories apart and rows show the employee category'
     { ...emp('e2', 'Luis'), categoryId: 'encargado' },
   ];
   const assignments = [
-    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00', partial: false },
-    { id: 'a2', employeeId: 'e1', day: TUE, shift: 'morning', start: '09:00', end: '15:00', partial: false },
-    { id: 'a3', employeeId: 'e2', day: TUE, shift: 'morning', start: '09:00', end: '15:00', partial: false },
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a2', employeeId: 'e1', day: TUE, shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a3', employeeId: 'e2', day: TUE, shift: 'morning', start: '09:00', end: '15:00' },
   ];
   const { model } = setup({ employees, assignments, settings });
   assert.deepEqual(model.rows.map((r) => r.category), ['Mozo', 'Encargado']);
@@ -183,9 +181,9 @@ test('shiftDetail summarises a shift: coverage, minimum per category and people'
   ];
   const overrides = { [`${MON}|morning`]: { mozo: 2 } };
   const assignments = [
-    { id: 'a2', employeeId: 'e1', day: MON, shift: 'morning', start: '12:00', end: '15:00', partial: true },
-    { id: 'a1', employeeId: 'e2', day: MON, shift: 'morning', start: '09:00', end: '15:00', partial: false },
-    { id: 'a3', employeeId: 'e1', day: TUE, shift: 'morning', start: '09:00', end: '15:00', partial: false },
+    { id: 'a2', employeeId: 'e1', day: MON, shift: 'morning', start: '12:00', end: '15:00' },
+    { id: 'a1', employeeId: 'e2', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a3', employeeId: 'e1', day: TUE, shift: 'morning', start: '09:00', end: '15:00' },
   ];
   const d = shiftDetail({ settings, employees, overrides, assignments, badIds: new Set(['a2']) }, MON, 'morning');
   assert.equal(d.title, 'Lunes 16/11 · Mañana');
@@ -194,9 +192,9 @@ test('shiftDetail summarises a shift: coverage, minimum per category and people'
   assert.equal(d.covered, 1.5);
   assert.equal(d.status, 'under');
   assert.deepEqual(d.categories.map((c) => [c.name, c.required, c.overridden]), [['Encargado', 1, false], ['Mozo', 2, true]]);
-  assert.deepEqual(d.assignments.map((a) => [a.id, a.name, a.category, a.hours, a.partial, a.bad]), [
-    ['a1', 'Luis', 'Encargado', 6, false, false],
-    ['a2', 'Ana', 'Mozo', 3, true, true],
+  assert.deepEqual(d.assignments.map((a) => [a.id, a.name, a.category, a.hours, a.bad]), [
+    ['a1', 'Luis', 'Encargado', 6, false],
+    ['a2', 'Ana', 'Mozo', 3, true],
   ]);
 });
 
@@ -206,15 +204,15 @@ test('cellDetail: cell assignments and whether one can be added', () => {
     { ...emp('e1', 'Ana'), categoryId: 'mozo', absences: [TUE], blockedShifts: ['0|afternoon'] },
   ];
   const assignments = [
-    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '12:00', partial: true },
-    { id: 'a2', employeeId: 'e1', day: TUE, shift: 'morning', start: '09:00', end: '15:00', partial: false },
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '12:00' },
+    { id: 'a2', employeeId: 'e1', day: TUE, shift: 'morning', start: '09:00', end: '15:00' },
   ];
   const input = { settings, employees, assignments, badIds: new Set(['a2']) };
   const work = cellDetail(input, 'e1', MON, 'morning');
   assert.equal(work.title, 'Ana · Lunes 16/11 · Mañana');
   assert.equal(work.category, 'Mozo');
   assert.deepEqual([work.shiftStart, work.shiftEnd, work.canAdd], ['09:00', '15:00', true]);
-  assert.deepEqual(work.assignments, [{ id: 'a1', start: '09:00', end: '12:00', partial: true, bad: false }]);
+  assert.deepEqual(work.assignments, [{ id: 'a1', start: '09:00', end: '12:00', bad: false }]);
   assert.equal(cellDetail(input, 'e1', MON, 'afternoon').blocked, true);
   assert.equal(cellDetail(input, 'e1', MON, 'afternoon').canAdd, false);
   const absent = cellDetail(input, 'e1', TUE, 'afternoon');

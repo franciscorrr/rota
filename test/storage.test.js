@@ -83,3 +83,16 @@ test('categories: custom names are kept as they are', () => {
   });
   assert.deepEqual(state.settings.categories.map((category) => category.name), ['Encargado', 'Sales']);
 });
+
+test('assignments: the legacy "partial" flag in imported or stored data is dropped', () => {
+  const state = normalizeState({
+    settings: { categories: CATEGORIES },
+    employees: [{ id: 'e1', name: 'Ana', contractHours: 30, absences: [] }],
+    assignments: [
+      { id: 'a1', employeeId: 'e1', day: '2026-11-16', shift: 'morning', start: '10:00', end: '15:00', partial: true },
+    ],
+  });
+  assert.deepEqual(state.assignments, [
+    { id: 'a1', employeeId: 'e1', day: '2026-11-16', shift: 'morning', start: '10:00', end: '15:00' },
+  ]);
+});

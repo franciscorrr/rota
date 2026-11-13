@@ -70,7 +70,7 @@ function categoriesWithNeed(settings, need, gap) {
 
 /** Cell without an assigned shift: absence, block or empty. */
 function createIdleCell(kind, lines) {
-  return { kind, lines, hours: 0, partial: false, bad: false, assignmentIds: [] };
+  return { kind, lines, hours: 0, bad: false, assignmentIds: [] };
 }
 
 /** Cell with a shift: an employee's assignments on a day and shift (at least one). */
@@ -80,7 +80,6 @@ function createWorkCell(ownAssignments, badIds) {
     kind: 'work',
     lines: sorted.map((assignment) => timeRange(assignment.start, assignment.end)),
     hours: sorted.reduce((sum, assignment) => sum + Math.max(0, assignmentHours(assignment)), 0),
-    partial: sorted.some((assignment) => assignment.partial),
     bad: sorted.some((assignment) => badIds.has(assignment.id)),
     assignmentIds: sorted.map((assignment) => assignment.id),
   };
@@ -220,14 +219,12 @@ function describeEmployeeCell(row, cell, column, locale) {
   if (cell.kind === 'blocked') return t('sheet.describeBlocked', { name: row.name, where });
   if (cell.kind === 'empty') return t('sheet.describeEmpty', { name: row.name, where });
 
-  const reinforcement = cell.partial ? t('sheet.describePartial') : '';
   const brokenRule = cell.bad ? t('sheet.describeBad') : '';
   return t('sheet.describeWork', {
     name: row.name,
     where,
     times: cell.lines.join(t('sheet.joinAnd')),
     hours: round2(cell.hours),
-    partial: reinforcement,
     bad: brokenRule,
   });
 }
@@ -284,7 +281,6 @@ export function shiftDetail({ settings, employees, overrides, assignments, badId
       start: assignment.start,
       end: assignment.end,
       hours: round2(Math.max(0, assignmentHours(assignment))),
-      partial: Boolean(assignment.partial),
       bad: badIds.has(assignment.id),
     };
   });
@@ -333,7 +329,6 @@ export function cellDetail({ settings, employees, assignments, badIds = new Set(
       id: assignment.id,
       start: assignment.start,
       end: assignment.end,
-      partial: Boolean(assignment.partial),
       bad: badIds.has(assignment.id),
     })),
   };

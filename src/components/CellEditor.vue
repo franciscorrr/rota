@@ -11,7 +11,7 @@ import DialogBox from './DialogBox.vue';
 const { employeeId, day, shift } = dialog.value;
 const detail = cellDetail(sheetInput.value, employeeId, day, shift);
 
-const rows = ref(detail.assignments.map(({ id, start, end, partial, bad }) => ({ id, start, end, partial, bad })));
+const rows = ref(detail.assignments.map(({ id, start, end, bad }) => ({ id, start, end, bad })));
 const newStart = ref(detail.shiftStart);
 const newEnd = ref(detail.shiftEnd);
 const error = ref('');
@@ -59,7 +59,7 @@ function remove(assignmentId) {
         <input v-model="row.start" type="time" :aria-label="t('cellEditor.startAria')" class="time" />
         –
         <input v-model="row.end" type="time" :aria-label="t('cellEditor.endAria')" class="time" />
-        <AssignmentBadges :partial="row.partial" :bad="row.bad" />
+        <AssignmentBadges :bad="row.bad" />
         <button type="button" class="danger" @click="remove(row.id)">{{ t('cellEditor.remove') }}</button>
       </li>
     </ul>

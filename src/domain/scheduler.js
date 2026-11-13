@@ -2,7 +2,7 @@
 //
 // Conventions:
 //  - Days are ISO dates (YYYY-MM-DD); shifts are 'morning' | 'afternoon'.
-//  - An assignment is { id, employeeId, day, shift, start, end, partial }.
+//  - An assignment is { id, employeeId, day, shift, start, end }.
 //  - The weekly cap is NOT a hard constraint: it only produces warnings (a decision by the manager).
 //  - "Days off": an employee works at most (open days - daysOffPerEmployee) days.
 
@@ -442,7 +442,7 @@ function ranksWithNeeds(settings, slots) {
  * Generates a schedule. Returns { assignments, warnings, stats }.
  * 1) Greedy fill of full shifts by rank, highest first (the highest category places first;
  *    within each rank, the slot with the fewest candidates).
- * It does not create partial extra shifts: the organizer adds those by hand (leftover hours
+ * It only creates full shifts: the organizer adds shorter ones by hand (leftover hours
  * remain as an "under target" warning).
  *
  * `options.keep` are existing assignments that are respected as is (they count towards
@@ -498,7 +498,6 @@ export function generate(settings, employees, overrides = {}, options = {}) {
         shift: slot.key,
         start: slot.start,
         end: slot.end,
-        partial: false,
       });
     }
   }

@@ -13,7 +13,6 @@
   --ok: #17692f;
   --ok-bg: #e4f5ea;
   --work-bg: #e3efff;
-  --partial-bg: #fff0cc;
   --absent-bg: #dcdcd6;
 }
 
@@ -33,7 +32,6 @@
     --ok: #7fdc9a;
     --ok-bg: #16301e;
     --work-bg: #1e3350;
-    --partial-bg: #4a3b12;
     --absent-bg: #3a3a42;
   }
 }
@@ -550,14 +548,6 @@ tr.warn-row td {
   background: var(--work-bg);
 }
 
-.sheet td.work.partial {
-  background: var(--partial-bg);
-}
-
-.sheet td.partial .tag {
-  color: var(--warn);
-}
-
 .sheet td.absent {
   background: repeating-linear-gradient(135deg, var(--absent-bg) 0 6px, var(--surface) 6px 12px);
   color: var(--muted);
@@ -635,10 +625,6 @@ tr.warn-row td {
 
 .swatch.work {
   background: var(--work-bg);
-}
-
-.swatch.partial {
-  background: var(--partial-bg);
 }
 
 .swatch.absent {

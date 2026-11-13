@@ -65,7 +65,7 @@ test('base case: covers every slot without breaking rest or days off', () => {
   assert.deepEqual(types(warnings).filter((t) => hard.includes(t)), []);
   // 6 days x 2 shifts x 2 people = 24 full shifts at least
   assert.ok(assignments.length >= 24);
-  assert.ok(assignments.every((a) => !a.partial));
+  assert.ok(assignments.every((a) => a.start === settings.shifts[a.shift].start && a.end === settings.shifts[a.shift].end));
 });
 
 test('absences reduce the employee target and count in the global totals', () => {
@@ -93,11 +93,11 @@ test('a cap below the contracts warns but does not cut hours', () => {
 test('validate detects insufficient rest between shifts and overlaps on the same day', () => {
   const settings = settingsWith();
   const employees = makeEmployees(1);
-  const base = { employeeId: 'e1', partial: false };
+  const base = { employeeId: 'e1' };
   // Monday afternoon (until 21:00) and Tuesday morning moved up to 08:00 => 11 h
   const early = [
     { ...base, id: 'a1', day: MON, shift: 'afternoon', start: '15:00', end: '21:00' },
-    { ...base, id: 'a2', day: TUE, shift: 'morning', start: '08:00', end: '15:00', partial: true },
+    { ...base, id: 'a2', day: TUE, shift: 'morning', start: '08:00', end: '15:00' },
   ];
   const r1 = validate(settings, employees, {}, early);
   assert.ok(types(r1.warnings).includes('rest'));
@@ -122,7 +122,7 @@ test('insufficient staff: leaves slots with a warning', () => {
   assert.ok(types(warnings).includes('unfilled'));
 });
 
-test('the generator never creates extra shifts: leftover hours remain as a warning', () => {
+test('the generator only creates full shifts: leftover hours remain as a warning', () => {
   const settings = settingsWith({
     shifts: {
       morning: { start: '09:00', end: '15:00', required: { mozo: 1 } },
@@ -131,13 +131,12 @@ test('the generator never creates extra shifts: leftover hours remain as a warni
   });
   const employees = makeEmployees(1, 10); // 6 h full shift; the remaining 4 h are not distributed on their own
   const { assignments, warnings, stats } = generate(settings, employees);
-  assert.equal(assignments.filter((a) => a.partial).length, 0);
   assert.ok(assignments.every((a) => a.start === settings.shifts[a.shift].start && a.end === settings.shifts[a.shift].end));
   assert.equal(hoursOf(assignments, 'e1'), 6);
   assert.equal(stats.employees[0].assigned, 6);
   assert.ok(warnings.some((w) => w.type === 'under'));
-  // An extra shift added by hand is accepted and makes up the hours.
-  const manual = [...assignments, { id: 'm1', employeeId: 'e1', day: TUE, shift: 'afternoon', start: '15:00', end: '19:00', partial: true }];
+  // A shorter shift added by hand is accepted and makes up the hours.
+  const manual = [...assignments, { id: 'm1', employeeId: 'e1', day: TUE, shift: 'afternoon', start: '15:00', end: '19:00' }];
   const checked = validate(settings, employees, {}, manual);
   assert.equal(checked.stats.employees[0].assigned, 10);
   assert.ok(!checked.warnings.some((w) => w.type === 'under'));
@@ -156,7 +155,7 @@ test('week boundary: respects rest with the last shift of the previous week', ()
   // e1 finished at 23:00 on Sunday: cannot start on Monday at 09:00 (10 h)
   assert.ok(!assignments.some((a) => a.employeeId === 'e1' && a.day === MON && a.start === '09:00'));
   // validate flags it if forced by hand
-  const manual = [{ id: 'm1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00', partial: false }];
+  const manual = [{ id: 'm1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' }];
   const r = validate(settings, employees, {}, manual);
   assert.ok(types(r.warnings).includes('rest'));
 });
@@ -165,7 +164,7 @@ test('validate warns about assigned absentees, closed days and too many work day
   const settings = settingsWith();
   const employees = makeEmployees(1);
   employees[0] = { ...employees[0], absences: [TUE] };
-  const mk = (id, day, shift, start, end) => ({ id, employeeId: 'e1', day, shift, start, end, partial: false });
+  const mk = (id, day, shift, start, end) => ({ id, employeeId: 'e1', day, shift, start, end });
   const assignments = [
     mk('x1', TUE, 'morning', '09:00', '15:00'),
     mk('x2', SUN, 'morning', '09:00', '15:00'),
@@ -210,8 +209,8 @@ test('blocked shifts: a manual assignment to a blocked shift is an error', () =>
   const settings = testSettings();
   const employees = [{ id: 'e1', name: 'Ana', contractHours: 30, absences: [], blockedShifts: ['5|afternoon'] }];
   const assignments = [
-    { id: 'a1', employeeId: 'e1', day: '2026-11-21', shift: 'afternoon', start: '15:00', end: '21:00', partial: false },
-    { id: 'a2', employeeId: 'e1', day: '2026-11-21', shift: 'morning', start: '09:00', end: '15:00', partial: false },
+    { id: 'a1', employeeId: 'e1', day: '2026-11-21', shift: 'afternoon', start: '15:00', end: '21:00' },
+    { id: 'a2', employeeId: 'e1', day: '2026-11-21', shift: 'morning', start: '09:00', end: '15:00' },
   ];
   const { warnings } = validate(settings, employees, {}, assignments);
   const blocked = warnings.filter((w) => w.type === 'blocked');
@@ -292,7 +291,7 @@ test('categories: a stock assistant never covers a manager place', () => {
   const settings = withNeed(testSettings(), { encargado: 1 });
   const employees = [person('m1', 'mozo'), person('m2', 'mozo')];
   const { assignments, warnings } = generate(settings, employees, {});
-  assert.equal(assignments.filter((a) => a.shift === 'morning' && !a.partial).length, 0);
+  assert.equal(assignments.filter((a) => a.shift === 'morning').length, 0);
   assert.ok(warnings.some((w) => w.type === 'unfilled' && /Encargado/.test(w.message)));
   assert.ok(warnings.some((w) => w.type === 'staff' && /Encargado/.test(w.message)), 'there is no manager');
 });
@@ -310,9 +309,9 @@ test('categories: validate warns about what is missing in the shift, with the ca
   const settings = withNeed(testSettings(), { encargado: 1, mozo: 1 });
   const employees = [person('e1', 'encargado'), person('m1', 'mozo')];
   const assignments = [
-    { id: 'a1', employeeId: 'm1', day: '2026-11-16', shift: 'morning', start: '09:00', end: '15:00', partial: false },
-    { id: 'a2', employeeId: 'm1', day: '2026-11-17', shift: 'morning', start: '09:00', end: '15:00', partial: false },
-    { id: 'a3', employeeId: 'e1', day: '2026-11-17', shift: 'morning', start: '09:00', end: '15:00', partial: false },
+    { id: 'a1', employeeId: 'm1', day: '2026-11-16', shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a2', employeeId: 'm1', day: '2026-11-17', shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a3', employeeId: 'e1', day: '2026-11-17', shift: 'morning', start: '09:00', end: '15:00' },
   ];
   const un = validate(settings, employees, {}, assignments).warnings.filter((w) => w.type === 'unfilled');
   const monday = un.find((w) => /Lunes mañana/.test(w.message));
@@ -347,7 +346,7 @@ test('generateShift: completes only that shift and does not touch any other assi
   const r = generateShift(settings, employees, {}, rest, TUE, 'morning');
   assert.ok(r.added.length > 0);
   assert.ok(r.added.every(inTarget), 'it only adds to the requested shift');
-  assert.ok(r.added.every((a) => !a.partial));
+  assert.ok(r.added.every((a) => a.start === settings.shifts[a.shift].start && a.end === settings.shifts[a.shift].end));
   assert.equal(r.assignments.length, rest.length + r.added.length);
   assert.deepEqual(r.assignments.slice(0, rest.length), rest, 'conserva el resto, en su orden e intactas');
   assert.equal(r.missingText, '');
@@ -357,7 +356,7 @@ test('generateShift: completes only that shift and does not touch any other assi
 test('generateShift: keeps what is already in the shift and only completes what is missing', () => {
   const settings = settingsWith({ weeklyCap: 400 });
   const employees = makeEmployees(4);
-  const mine = { id: 'm1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '12:00', partial: true };
+  const mine = { id: 'm1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '12:00' };
   const r = generateShift(settings, employees, {}, [mine], MON, 'morning');
   assert.ok(r.assignments.includes(mine));
   assert.ok(r.added.length >= 1 && r.added.every((a) => a.shift === 'morning' && a.day === MON));
@@ -380,7 +379,7 @@ test('generateShift: respects absences, blocks and rest with what is already ass
   employees[0] = { ...employees[0], absences: [MON] };
   employees[1] = { ...employees[1], blockedShifts: ['0|morning'] };
   // e3 already works on Monday afternoon: cannot also work the morning (no rest).
-  const existing = [{ id: 'x', employeeId: 'e3', day: MON, shift: 'afternoon', start: '15:00', end: '21:00', partial: false }];
+  const existing = [{ id: 'x', employeeId: 'e3', day: MON, shift: 'afternoon', start: '15:00', end: '21:00' }];
   const r = generateShift(settings, employees, {}, existing, MON, 'morning');
   assert.equal(r.added.length, 1);
   assert.equal(r.added[0].employeeId, 'e4');

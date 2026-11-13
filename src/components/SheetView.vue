@@ -11,7 +11,6 @@ const TOTAL_HEADERS = ['sheet.contract', 'sheet.target', 'sheet.assigned', 'shee
 
 const LEGEND = [
   { swatch: 'work', key: 'sheet.legendWork' },
-  { swatch: 'partial', key: 'sheet.legendPartial' },
   { swatch: 'absent', key: 'sheet.legendAbsent' },
   { swatch: 'blocked', key: 'sheet.legendBlocked' },
   { swatch: 'bad', key: 'sheet.legendBad' },
@@ -30,7 +29,7 @@ const position = computed(() => ({
 }));
 
 function cellClasses(cell) {
-  return ['cell', cell.kind, { partial: cell.partial, bad: cell.bad }];
+  return ['cell', cell.kind, { bad: cell.bad }];
 }
 
 /** Common attributes of the navigable cells (employee and coverage). */
@@ -118,7 +117,6 @@ function onKeydown(event) {
               @focus="selected = { r: rowIndex, c: columnIndex }"
             >
               <div v-for="line in cell.lines" :key="line">{{ line }}</div>
-              <small v-if="cell.partial" class="tag">{{ t('sheet.badgePartial') }}</small>
             </td>
             <td class="num">{{ row.contract }} h</td>
             <td class="num">{{ row.target }} h</td>

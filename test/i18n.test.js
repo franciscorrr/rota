@@ -86,7 +86,7 @@ test('warnings are generated in the language of the settings', () => {
   state.employees[0].absences = [MON];
   state.assignments.push({
     id: 'a1', employeeId: state.employees[0].id, day: MON, shift: 'morning',
-    start: '09:00', end: '15:00', partial: false,
+    start: '09:00', end: '15:00',
   });
 
   const { warnings } = validate(state.settings, state.employees, state.overrides, state.assignments);

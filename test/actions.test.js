@@ -13,7 +13,6 @@ import {
   generateForShift,
   generateWeek,
   isAbsentAllWeek,
-  isPartialRange,
   isValidRange,
   parseNumber,
   removeAssignment,
@@ -66,32 +65,30 @@ test('parseNumber: accepts valid values and returns the fallback for invalid one
   assert.equal(parseNumber('0', 5, { min: 1 }), 5);
 });
 
-test('ranges: the end must be later than the start; anything but the full shift is an extra shift', () => {
+test('ranges: the end must be later than the start', () => {
   assert.equal(isValidRange('09:00', '15:00'), true);
   assert.equal(isValidRange('15:00', '15:00'), false);
   assert.equal(isValidRange('', '15:00'), false);
-  const shift = { start: '09:00', end: '15:00' };
-  assert.equal(isPartialRange(shift, '09:00', '15:00'), false);
-  assert.equal(isPartialRange(shift, '10:00', '15:00'), true);
 });
 
-test('addAssignment: a full shift is not an extra shift, partial hours are, an invalid range adds nothing', () => {
+test('addAssignment: accepts the full shift or custom hours; an invalid range adds nothing', () => {
   const state = makeState(1);
   const [employee] = state.employees;
   const full = { employeeId: employee.id, day: MON, shift: 'morning', start: '09:00', end: '15:00' };
 
   assert.deepEqual(addAssignment(state, full), { ok: true });
-  assert.equal(state.assignments[0].partial, false);
+  assert.equal(state.assignments[0].start, '09:00');
 
   addAssignment(state, { ...full, day: TUE, start: '10:00' });
-  assert.equal(state.assignments[1].partial, true);
+  assert.equal(state.assignments[1].start, '10:00');
+  assert.ok(state.assignments.every((assignment) => !('partial' in assignment)));
 
   const invalid = addAssignment(state, { ...full, start: '15:00', end: '09:00' });
   assert.deepEqual(invalid, { ok: false, error: END_BEFORE_START_ERROR });
   assert.equal(state.assignments.length, 2);
 });
 
-test('updateAssignmentTimes: recalculates the extra shift and changes nothing if any row is invalid', () => {
+test('updateAssignmentTimes: changes the times and changes nothing if any row is invalid', () => {
   const state = makeState(1);
   const [employee] = state.employees;
   addAssignment(state, { employeeId: employee.id, day: MON, shift: 'morning', start: '09:00', end: '15:00' });
@@ -99,10 +96,8 @@ test('updateAssignmentTimes: recalculates the extra shift and changes nothing if
 
   assert.equal(updateAssignmentTimes(state, [{ id: assignment.id, start: '10:00', end: '15:00' }]).ok, true);
   assert.equal(assignment.start, '10:00');
-  assert.equal(assignment.partial, true);
 
   assert.equal(updateAssignmentTimes(state, [{ id: assignment.id, start: '09:00', end: '15:00' }]).ok, true);
-  assert.equal(assignment.partial, false);
 
   assert.equal(updateAssignmentTimes(state, [{ id: assignment.id, start: '16:00', end: '15:00' }]).ok, false);
   assert.equal(assignment.start, '09:00');

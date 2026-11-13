@@ -2,7 +2,7 @@
 //
 // Each action receives the `state` (or part of it), mutates it in place and, when needed, returns
 // the result so the interface can show it. The interface only captures the event and calls here:
-// the rules (what counts as an extra shift, which minimum is stored, what happens when a category
+// the rules (which minimum is stored, what happens when a category
 // is deleted...) live in this file and are tested in test/actions.test.js.
 
 import {
@@ -62,11 +62,6 @@ export function isValidRange(start, end) {
   return Boolean(start) && Boolean(end) && end > start;
 }
 
-/** @returns {boolean} true if the times are not those of the full shift (then it is an extra shift). */
-export function isPartialRange(shift, start, end) {
-  return start !== shift.start || end !== shift.end;
-}
-
 /**
  * Adds an assignment. It does not check absences or blocks (validate() warns about those), only the time range.
  * @param {object} state
@@ -78,8 +73,7 @@ export function addAssignment(state, { employeeId, day, shift, start, end }) {
     return { ok: false, error: translate(state.settings.locale, 'actions.endBeforeStart') };
   }
 
-  const partial = isPartialRange(state.settings.shifts[shift], start, end);
-  state.assignments.push({ id: uid(), employeeId, day, shift, start, end, partial });
+  state.assignments.push({ id: uid(), employeeId, day, shift, start, end });
   return { ok: true };
 }
 
@@ -99,7 +93,6 @@ export function updateAssignmentTimes(state, edits) {
     if (!assignment) continue;
     assignment.start = start;
     assignment.end = end;
-    assignment.partial = isPartialRange(state.settings.shifts[assignment.shift], start, end);
   }
   return { ok: true };
 }

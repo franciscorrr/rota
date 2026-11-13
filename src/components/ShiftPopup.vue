@@ -62,7 +62,7 @@ function editInEditView() {
           end: assignment.end,
           hours: assignment.hours,
         }) }}
-        <AssignmentBadges :partial="assignment.partial" :bad="assignment.bad" />
+        <AssignmentBadges :bad="assignment.bad" />
       </li>
     </ul>
 

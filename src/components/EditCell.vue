@@ -6,7 +6,6 @@ import { addAssignment, generateForShift, removeAssignment, setDayMinimum } from
 import { categoryList, categoryOf, requiredByCategory, unavailabilityReason } from '../domain/scheduler.js';
 import { shiftDetail } from '../domain/sheet.js';
 import { setStatus, sheetInput, state, t } from '../state.js';
-import AssignmentBadges from './AssignmentBadges.vue';
 import NumberInput from './NumberInput.vue';
 
 const props = defineProps({
@@ -104,7 +103,6 @@ function generate() {
     <ul class="assigned">
       <li v-for="assignment in detail.assignments" :key="assignment.id" :class="{ bad: assignment.bad }">
         <span>{{ assignment.name }} {{ assignment.start }}–{{ assignment.end }}</span>
-        <AssignmentBadges :partial="assignment.partial" />
         <button
           type="button"
           class="icon no-print"
