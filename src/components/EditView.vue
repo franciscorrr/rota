@@ -13,8 +13,8 @@ const days = computed(() => openDayList(settings.value));
 
 <template>
   <p v-if="days.length === 0" class="hint">{{ t('sheet.noOpenDays') }}</p>
-  <div v-else class="table-wrap">
-    <table class="schedule">
+  <div v-else class="overflow-auto">
+    <table>
       <thead>
         <tr>
           <th>{{ t('edit.day') }}</th>
@@ -32,3 +32,9 @@ const days = computed(() => openDayList(settings.value));
     </table>
   </div>
 </template>
+
+<style scoped>
+td {
+  min-width: 24rem;
+}
+</style>

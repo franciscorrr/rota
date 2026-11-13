@@ -6,6 +6,6 @@ defineProps({ bad: Boolean, breakMinutes: { type: Number, default: 0 } });
 </script>
 
 <template>
-  <em v-if="bad" class="badge">{{ t('sheet.badgeBad') }}</em>
-  <em v-if="breakMinutes > 0" class="badge break">☕ {{ t('sheet.badgeBreak', { minutes: breakMinutes }) }}</em>
+  <mark v-if="bad">{{ t('sheet.badgeBad') }}</mark>
+  <mark v-if="breakMinutes > 0">☕ {{ t('sheet.badgeBreak', { minutes: breakMinutes }) }}</mark>
 </template>

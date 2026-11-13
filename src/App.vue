@@ -4,6 +4,7 @@ import CellEditor from './components/CellEditor.vue';
 import ConfigPanel from './components/ConfigPanel.vue';
 import EditView from './components/EditView.vue';
 import EmployeesTable from './components/EmployeesTable.vue';
+import GenerateButton from './components/GenerateButton.vue';
 import HoursTable from './components/HoursTable.vue';
 import ResultsSummary from './components/ResultsSummary.vue';
 import ShiftPopup from './components/ShiftPopup.vue';
@@ -24,46 +25,47 @@ const VIEWS = [
 </script>
 
 <template>
-  <header>
+  <header class="container-fluid">
     <h1>{{ t('app.title') }}</h1>
     <p class="print-only">{{ t('app.week', { date: state.settings.weekStart }) }}</p>
   </header>
 
-  <main>
+  <main class="container-fluid">
     <ToolbarButtons />
     <p class="status no-print" :class="{ error: status.isError }" role="status" aria-live="polite">
       {{ status.message }}
     </p>
 
-    <section id="config" class="no-print" aria-labelledby="h-config">
+    <article id="config" class="no-print" aria-labelledby="h-config">
       <h2 id="h-config">{{ t('section.config') }}</h2>
       <ConfigPanel />
-    </section>
+    </article>
 
-    <section id="employees" class="no-print" aria-labelledby="h-emp">
+    <article id="employees" class="no-print" aria-labelledby="h-emp">
       <h2 id="h-emp">{{ t('section.employees') }}</h2>
       <EmployeesTable />
-    </section>
+    </article>
 
-    <section id="results" :data-view="view" aria-labelledby="h-res">
+    <article id="results" aria-labelledby="h-res">
       <h2 id="h-res">{{ t('section.schedule') }}</h2>
-      <div class="tabs no-print" role="tablist" :aria-label="t('view.aria')">
+      <div class="no-print" role="group" :aria-label="t('view.aria')">
         <button
           v-for="tab in VIEWS"
           :key="tab.id"
           type="button"
-          role="tab"
-          :aria-selected="view === tab.id"
+          :class="{ outline: view !== tab.id }"
+          :aria-pressed="view === tab.id"
           @click="view = tab.id"
         >
           {{ t(tab.label) }}
         </button>
       </div>
       <ResultsSummary />
-      <div id="sheet"><SheetView /></div>
-      <div id="grid"><EditView /></div>
-      <div id="hours"><HoursTable /></div>
-    </section>
+      <div id="sheet" :hidden="view !== 'sheet'"><SheetView /></div>
+      <div id="grid" :hidden="view !== 'edit'"><EditView /></div>
+      <div id="hours" :hidden="view !== 'edit'"><HoursTable /></div>
+      <div class="no-print"><GenerateButton /></div>
+    </article>
   </main>
 
   <ShiftPopup v-if="dialog?.type === 'shift'" />

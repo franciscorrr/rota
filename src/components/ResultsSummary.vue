@@ -15,7 +15,7 @@ const summary = computed(() => t.value('results.summary', {
 
 <template>
   <div>
-    <p class="summary" :class="{ error: stats.exceedsCap }">{{ summary }}</p>
+    <p class="summary" :class="stats.exceedsCap ? 'error' : 'ok'">{{ summary }}</p>
   </div>
   <div>
     <template v-if="state.employees.length > 0">

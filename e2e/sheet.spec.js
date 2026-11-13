@@ -1,4 +1,6 @@
-import { expect, openApp, openDialog, openWithExample, openWithSchedule, test } from './fixtures.js';
+import {
+  expect, generateButtons, openApp, openDialog, openWithExample, openWithSchedule, test,
+} from './fixtures.js';
 
 const cell = (page, row, column) => page.locator(`td[data-r="${row}"][data-c="${column}"]`);
 
@@ -17,6 +19,14 @@ test('generating the schedule fills the sheet and the summary', async ({ page })
   await openWithSchedule(page);
   expect(await page.locator('td.cell.work').count()).toBeGreaterThan(20);
   await expect(page.locator('.summary')).toContainText('Horas planificadas');
+});
+
+test('the button at the end of the page also generates the schedule', async ({ page }) => {
+  await openWithExample(page);
+  await expect(generateButtons(page)).toHaveCount(2);
+
+  await generateButtons(page).last().click();
+  await expect(page.locator('td.cell.work').first()).toBeVisible();
 });
 
 test('arrows, Home and End move the selected cell (roving tabindex)', async ({ page }) => {
@@ -71,7 +81,7 @@ test('an invalid time range shows the error and does not close the editor', asyn
   await openDialog(page).locator('input[type=time]').first().fill('16:00');
   await openDialog(page).getByRole('button', { name: 'Guardar' }).click();
 
-  await expect(page.locator('.popup-error')).toContainText('posterior');
+  await expect(openDialog(page).getByRole('alert')).toContainText('posterior');
   await expect(openDialog(page)).toHaveCount(1);
 });
 
@@ -87,9 +97,9 @@ test('the shift popup shows coverage and allows generating the shift', async ({ 
   await openWithSchedule(page);
   await page.locator('.shift-head').first().click();
 
-  await expect(page.locator('.popup-cover')).toContainText('Cobertura');
+  await expect(openDialog(page)).toContainText('Cobertura');
   await openDialog(page).getByRole('button', { name: 'Generar este turno' }).click();
-  await expect(page.locator('.popup-note')).toHaveCount(1);
+  await expect(openDialog(page).getByRole('status')).toHaveCount(1);
 });
 
 test('"Edit in Edit view" switches tabs and hides the sheet', async ({ page }) => {
@@ -97,15 +107,14 @@ test('"Edit in Edit view" switches tabs and hides the sheet', async ({ page }) =
   await page.locator('.shift-head').first().click();
   await openDialog(page).getByRole('button', { name: 'Editar en «Edición»' }).click();
 
-  await expect(page.locator('#results')).toHaveAttribute('data-view', 'edit');
-  await expect(page.getByRole('tab', { name: 'Edición' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: 'Edición', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#sheet')).toBeHidden();
   await expect(page.locator('#grid')).toBeVisible();
 });
 
 test('printing always shows the sheet, even from the Edit tab', async ({ page }) => {
   await openWithSchedule(page);
-  await page.getByRole('tab', { name: 'Edición' }).click();
+  await page.getByRole('button', { name: 'Edición', exact: true }).click();
 
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('#sheet')).toBeVisible();

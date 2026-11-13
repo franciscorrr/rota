@@ -3,7 +3,7 @@ import { expect, openWithSchedule, test } from './fixtures.js';
 /** First cell (day and shift) of the Edit view. */
 async function firstEditCell(page) {
   await openWithSchedule(page);
-  await page.getByRole('tab', { name: 'Edición' }).click();
+  await page.getByRole('button', { name: 'Edición', exact: true }).click();
   return page.locator('#grid tbody tr').first().locator('td').first();
 }
 
@@ -49,7 +49,7 @@ test('people who are absent or have the shift blocked cannot be chosen', async (
 
 test('"Generate shift" completes the shift and announces it in the status bar', async ({ page }) => {
   await openWithSchedule(page);
-  await page.getByRole('tab', { name: 'Edición' }).click();
+  await page.getByRole('button', { name: 'Edición', exact: true }).click();
   await page.locator('#grid .gen-shift').first().click();
   await expect(page.locator('.status')).not.toBeEmpty();
 });

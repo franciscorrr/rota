@@ -72,8 +72,8 @@ function generate() {
 
 <template>
   <td>
-    <div class="cell-head no-print">
-      <div class="mins">
+    <div class="row cell-head no-print">
+      <div class="row mins">
         <label
           v-for="category in categories"
           :key="category.id"
@@ -81,7 +81,7 @@ function generate() {
         >
           {{ category.name.slice(0, 3) }}
           <NumberInput
-            class="narrow tiny"
+            class="narrow"
             :model-value="need[category.id]"
             integer
             :aria-label="t('edit.minimumAria', { name: category.name })"
@@ -90,27 +90,22 @@ function generate() {
         </label>
       </div>
       <span :class="{ error: detail.status === 'under' }">{{ detail.covered }}/{{ detail.required }}</span>
-      <button
-        type="button"
-        class="gen-shift"
-        :title="t('edit.generateShiftTitle')"
-        @click="generate"
-      >
+      <button type="button" class="small secondary gen-shift" :title="t('edit.generateShiftTitle')" @click="generate">
         {{ t('edit.generateShift') }}
       </button>
     </div>
 
     <ul class="assigned">
-      <li v-for="assignment in detail.assignments" :key="assignment.id" :class="{ bad: assignment.bad }">
+      <li v-for="assignment in detail.assignments" :key="assignment.id" class="row" :class="{ error: assignment.bad }">
         <span>{{ assignment.name }} {{ assignment.start }}–{{ assignment.end }}</span>
-        <span
+        <small
           v-if="assignment.breakMinutes > 0"
           class="break-mark"
           :title="t('sheet.badgeBreak', { minutes: assignment.breakMinutes })"
-        >☕ {{ t('sheet.breakMark', { minutes: assignment.breakMinutes }) }}</span>
+        >☕ {{ t('sheet.breakMark', { minutes: assignment.breakMinutes }) }}</small>
         <button
           type="button"
-          class="icon no-print"
+          class="small outline secondary no-print"
           :aria-label="t('edit.removeAria', { name: assignment.name })"
           @click="removeAssignment(state, assignment.id)"
         >
@@ -119,7 +114,7 @@ function generate() {
       </li>
     </ul>
 
-    <div class="add no-print">
+    <div class="row no-print">
       <select v-model="employeeId" :aria-label="t('edit.employeeAria')">
         <option value="">{{ t('edit.addEmployeeOption') }}</option>
         <option
@@ -133,7 +128,17 @@ function generate() {
       </select>
       <input v-model="start" type="time" :aria-label="t('cellEditor.startAria')" class="time" />
       <input v-model="end" type="time" :aria-label="t('cellEditor.endAria')" class="time" />
-      <button type="button" @click="add">{{ t('edit.add') }}</button>
+      <button type="button" class="secondary" @click="add">{{ t('edit.add') }}</button>
     </div>
   </td>
 </template>
+
+<style scoped>
+.cell-head {
+  justify-content: space-between;
+}
+
+.assigned li > span {
+  margin-right: auto;
+}
+</style>

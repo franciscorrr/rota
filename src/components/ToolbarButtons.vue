@@ -1,8 +1,12 @@
 <script setup>
 // Toolbar: generate, clear, print, export, import and reset.
-import { clearAssignments, generateWeek } from '../domain/actions.js';
+import { ref } from 'vue';
+import { clearAssignments } from '../domain/actions.js';
 import { defaultState, exportJSON, parseImport } from '../domain/storage.js';
 import { locale, setStatus, state, t } from '../state.js';
+import GenerateButton from './GenerateButton.vue';
+
+const fileInput = ref(null);
 
 /** Downloads a text as a JSON file. */
 function download(filename, text) {
@@ -15,23 +19,6 @@ function download(filename, text) {
   link.remove();
   // Revoking immediately can cancel the download in Firefox/Safari.
   setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-/** Generates the schedule for the whole week (replaces the current one, with confirmation). */
-function generateSchedule() {
-  if (state.value.employees.length === 0) {
-    setStatus(t.value('status.noEmployeesGenerate'), true);
-    return;
-  }
-  const hasCurrentSchedule = state.value.assignments.length > 0;
-  const confirmed = !hasCurrentSchedule || confirm(t.value('confirm.replaceSchedule'));
-  if (!confirmed) return;
-
-  if (!generateWeek(state.value)) {
-    setStatus(t.value('warning.noCategories'), true);
-    return;
-  }
-  setStatus(t.value('status.generated'));
 }
 
 /** Removes every assignment (with confirmation). */
@@ -82,15 +69,13 @@ function resetAll() {
 </script>
 
 <template>
-  <div class="toolbar no-print">
-    <button type="button" class="primary" @click="generateSchedule">{{ t('toolbar.generate') }}</button>
-    <button type="button" @click="clearSchedule">{{ t('toolbar.clear') }}</button>
-    <button type="button" @click="printPage">{{ t('toolbar.print') }}</button>
-    <button type="button" @click="exportSchedule">{{ t('toolbar.export') }}</button>
-    <label class="file-btn">
-      {{ t('toolbar.import') }}
-      <input type="file" accept="application/json,.json" hidden @change="importSchedule" />
-    </label>
+  <div class="row no-print">
+    <GenerateButton />
+    <button type="button" class="secondary" @click="clearSchedule">{{ t('toolbar.clear') }}</button>
+    <button type="button" class="secondary" @click="printPage">{{ t('toolbar.print') }}</button>
+    <button type="button" class="secondary" @click="exportSchedule">{{ t('toolbar.export') }}</button>
+    <button type="button" class="secondary" @click="fileInput.click()">{{ t('toolbar.import') }}</button>
+    <input ref="fileInput" type="file" accept="application/json,.json" hidden @change="importSchedule" />
     <button type="button" class="danger" @click="resetAll">{{ t('toolbar.reset') }}</button>
   </div>
 </template>

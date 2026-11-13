@@ -19,27 +19,20 @@ onBeforeUnmount(() => {
   if (opener?.isConnected) opener.focus();
 });
 
-/** The "backdrop" of a modal <dialog> is the element itself: only a click outside its box counts. */
+/** Pico's <dialog> covers the whole viewport and the box is the <article>: a click on the dialog itself is outside. */
 function onClick(event) {
-  if (event.target !== dialogElement.value) return;
-  const box = dialogElement.value.getBoundingClientRect();
-  const outsideBox = event.clientX < box.left
-    || event.clientX > box.right
-    || event.clientY < box.top
-    || event.clientY > box.bottom;
-  const isKeyboardClick = event.clientX === 0 && event.clientY === 0;
-  if (outsideBox || isKeyboardClick) emit('close');
+  if (event.target === dialogElement.value) emit('close');
 }
 </script>
 
 <template>
   <dialog
     ref="dialogElement"
-    class="shift-popup no-print"
+    class="no-print"
     :aria-labelledby="labelledby"
     @click="onClick"
     @cancel.prevent="emit('close')"
   >
-    <slot />
+    <article><slot /></article>
   </dialog>
 </template>

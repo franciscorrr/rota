@@ -235,7 +235,7 @@ src/domain/             pure business logic, no Vue or DOM:
   actions.js              actions that modify the state (assignments, employees, categories, week...)
   navigation.js           keyboard navigation across the grid
   storage.js              localStorage, normalisation and JSON import
-src/styles.css          styles (light/dark/print)
+src/styles.css          global styles on top of Pico.css (theme tuning, state colours, print)
 test/                   domain logic tests (node --test)
 e2e/                    browser tests (Playwright)
 playwright.config.js    browser test configuration

@@ -66,7 +66,7 @@ test('changing the week snaps it to Monday and clears the schedule', async ({ pa
 
 test('an invalid numeric value in the settings is restored', async ({ page }) => {
   await openWithExample(page);
-  const cap = page.locator('#config .grid-form .field').nth(1).locator('input');
+  const cap = page.getByLabel('Límite semanal');
   const previous = await cap.inputValue();
 
   await cap.fill('');
@@ -81,8 +81,8 @@ test('changing the language translates the interface and survives a reload', asy
   await expect(page.getByRole('heading', { name: 'Rota' })).toBeVisible();
   await expect(page).toHaveTitle('Rota');
   expect(await page.locator('html').getAttribute('lang')).toBe('en');
-  await expect(page.getByRole('button', { name: 'Generate schedule' })).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Edit' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Generate schedule' })).toHaveCount(2);
+  await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
   await expect(page.locator('.summary')).toContainText('Planned hours');
   await expect(page.locator('.sheet tfoot th').first()).toContainText('Coverage');
   await expect(page.locator('.status')).toContainText('Language changed to English');

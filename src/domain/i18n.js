@@ -52,6 +52,7 @@ const es = {
   'confirm.reset': 'Se borrarán empleados, configuración y horario. ¿Continuar?',
 
   // ---------- Settings ----------
+  'config.general': 'General',
   'config.week': 'Semana (lunes)',
   'config.weekHint': 'Si eliges otro día, se ajusta al lunes de esa semana.',
   'config.weeklyCap': 'Límite semanal de horas',
@@ -318,6 +319,7 @@ const en = {
   'confirm.reset': 'Employees, settings and schedule will be deleted. Continue?',
 
   // ---------- Settings ----------
+  'config.general': 'General',
   'config.week': 'Week (Monday)',
   'config.weekHint': 'If you pick another day, it switches to the Monday of that week.',
   'config.weeklyCap': 'Weekly hours limit',

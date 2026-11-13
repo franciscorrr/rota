@@ -1,4 +1,6 @@
-import { employeeRows, expect, openApp, openWithExample, openWithSchedule, test } from './fixtures.js';
+import {
+  employeeRows, expect, generateButtons, openApp, openWithExample, openWithSchedule, test,
+} from './fixtures.js';
 
 test('the schedule and employees survive a reload', async ({ page }) => {
   await openWithSchedule(page);
@@ -29,7 +31,7 @@ test('"Clear schedule" removes assignments but keeps employees', async ({ page }
 
 test('"Generate schedule" with no employees warns', async ({ page }) => {
   await openApp(page);
-  await page.getByRole('button', { name: 'Generar horario' }).click();
+  await generateButtons(page).first().click();
   await expect(page.locator('.status')).toContainText('Añade al menos un empleado');
 });
 

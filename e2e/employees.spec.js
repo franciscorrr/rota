@@ -35,13 +35,13 @@ test('"Whole week" marks absences and "Clear all" unmarks them', async ({ page }
 test('blocking and unblocking a shift', async ({ page }) => {
   await openWithExample(page);
   const row = employeeRows(page).nth(1);
-  const chips = row.locator('.chip');
+  const chips = row.locator('.blocks button');
   const before = await chips.count();
 
   await row.locator('.blocks select').selectOption({ index: 1 });
   await expect(chips).toHaveCount(before + 1);
 
-  await chips.last().getByRole('button').click();
+  await chips.last().click();
   await expect(chips).toHaveCount(before);
 });
 

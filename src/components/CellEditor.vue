@@ -53,33 +53,35 @@ function remove(assignmentId) {
 
 <template>
   <DialogBox class="cell-editor" labelledby="cell-editor-title" @close="closeDialog">
-    <h3 id="cell-editor-title">{{ detail.title }}</h3>
+    <header>
+      <h3 id="cell-editor-title">{{ detail.title }}</h3>
+    </header>
     <p class="hint">{{ shiftRange }}</p>
 
-    <ul v-if="rows.length > 0" class="popup-list edit-list">
-      <li v-for="row in rows" :key="row.id" :class="{ bad: row.bad }">
+    <template v-if="rows.length > 0">
+      <div v-for="row in rows" :key="row.id" class="row" :class="{ error: row.bad }">
         <input v-model="row.start" type="time" :aria-label="t('cellEditor.startAria')" class="time" />
         –
         <input v-model="row.end" type="time" :aria-label="t('cellEditor.endAria')" class="time" />
         <AssignmentBadges :bad="row.bad" :break-minutes="row.breakMinutes" />
-        <button type="button" class="danger" @click="remove(row.id)">{{ t('cellEditor.remove') }}</button>
-      </li>
-    </ul>
+        <button type="button" class="small danger" @click="remove(row.id)">{{ t('cellEditor.remove') }}</button>
+      </div>
+    </template>
     <template v-else-if="detail.canAdd">
       <p class="hint">{{ t('cellEditor.emptyHint') }}</p>
-      <p class="edit-list">
+      <div class="row">
         <input v-model="newStart" type="time" :aria-label="t('cellEditor.startAria')" class="time" />
         –
         <input v-model="newEnd" type="time" :aria-label="t('cellEditor.endAria')" class="time" />
-      </p>
+      </div>
     </template>
     <p v-else class="hint">{{ cannotAssignReason }}</p>
 
-    <p class="popup-error" role="alert">{{ error }}</p>
-    <div class="popup-actions">
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <footer>
       <button v-if="rows.length > 0" type="button" @click="saveChanges">{{ t('cellEditor.save') }}</button>
       <button v-else-if="detail.canAdd" type="button" @click="addNew">{{ t('cellEditor.add') }}</button>
-      <button type="button" @click="closeDialog">{{ t('cellEditor.cancel') }}</button>
-    </div>
+      <button type="button" class="secondary" @click="closeDialog">{{ t('cellEditor.cancel') }}</button>
+    </footer>
   </DialogBox>
 </template>

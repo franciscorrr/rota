@@ -56,7 +56,7 @@ function onBlockSelected(employee, event) {
 
 <template>
   <p v-if="state.employees.length === 0" class="hint">{{ t('employees.empty') }}</p>
-  <div v-else class="table-wrap">
+  <div v-else class="overflow-auto">
     <table>
       <thead>
         <tr><th v-for="header in TABLE_HEADERS" :key="header">{{ header ? t(header) : '' }}</th></tr>
@@ -91,11 +91,10 @@ function onBlockSelected(employee, event) {
             />
           </td>
           <td>
-            <div class="days">
+            <div class="row days">
               <label
                 v-for="{ day, dayIndex } in openWeek"
                 :key="day"
-                class="check"
                 :title="t('employees.dayTitle', { day: translateDay(dayIndex), date: day })"
               >
                 <input
@@ -107,7 +106,7 @@ function onBlockSelected(employee, event) {
               </label>
               <button
                 type="button"
-                class="all-days"
+                class="small secondary"
                 :disabled="openWeekDays.length === 0"
                 :title="isAbsentAllWeek(employee, openWeekDays)
                   ? t('employees.unmarkAllTitle')
@@ -119,18 +118,17 @@ function onBlockSelected(employee, event) {
             </div>
           </td>
           <td>
-            <div class="blocks">
-              <span v-for="blockId in employee.blockedShifts ?? []" :key="blockId" class="chip">
-                {{ blockLabel(blockId) }}
-                <button
-                  type="button"
-                  class="icon"
-                  :aria-label="t('employees.unblockAria', { shift: blockLabel(blockId) })"
-                  @click="unblockShift(employee, blockId)"
-                >
-                  ×
-                </button>
-              </span>
+            <div class="row blocks">
+              <button
+                v-for="blockId in employee.blockedShifts ?? []"
+                :key="blockId"
+                type="button"
+                class="small outline secondary"
+                :aria-label="t('employees.unblockAria', { shift: blockLabel(blockId) })"
+                @click="unblockShift(employee, blockId)"
+              >
+                {{ blockLabel(blockId) }} ×
+              </button>
               <select
                 :aria-label="t('employees.blockAria', { name: employee.name })"
                 :disabled="freeBlockOptions(employee).length === 0"
@@ -153,7 +151,7 @@ function onBlockSelected(employee, event) {
           <td>
             <button
               type="button"
-              class="danger"
+              class="small danger"
               :aria-label="t('employees.deleteAria', { name: employee.name })"
               @click="removeEmployee(state, employee.id)"
             >
@@ -164,9 +162,9 @@ function onBlockSelected(employee, event) {
       </tbody>
     </table>
   </div>
-  <div v-if="!hasCategories" class="callout warn">
+  <div v-if="!hasCategories" class="warn">
     <p>{{ t('employees.needsCategory') }}</p>
-    <button type="button" @click="addCategory(settings)">{{ t('employees.createCategory') }}</button>
+    <button type="button" class="secondary" @click="addCategory(settings)">{{ t('employees.createCategory') }}</button>
   </div>
   <button
     type="button"
@@ -177,3 +175,9 @@ function onBlockSelected(employee, event) {
     {{ t('employees.add') }}
   </button>
 </template>
+
+<style scoped>
+input[type='text'] {
+  min-width: 10rem;
+}
+</style>

@@ -59,45 +59,46 @@ function onShiftTimeChange(shift, property, event) {
 </script>
 
 <template>
-  <label class="field language">
-    <span>{{ t('language.label') }}</span>
-    <select :value="locale" @change="setLocale($event.target.value)">
-      <option v-for="language in languages" :key="language.id" :value="language.id">{{ language.name }}</option>
-    </select>
-  </label>
+  <fieldset>
+    <legend>{{ t('config.general') }}</legend>
+    <div class="grid">
+      <label>
+        {{ t('language.label') }}
+        <select :value="locale" @change="setLocale($event.target.value)">
+          <option v-for="language in languages" :key="language.id" :value="language.id">{{ language.name }}</option>
+        </select>
+      </label>
+      <label>
+        {{ t('config.week') }}
+        <input type="date" :value="settings.weekStart" @change="onWeekChange" />
+        <small>{{ t('config.weekHint') }}</small>
+      </label>
+      <label v-for="field in NUMBER_FIELDS" :key="field.key">
+        {{ t(field.label) }}
+        <NumberInput
+          v-model="settings[field.key]"
+          :min="field.min"
+          :step="field.step"
+          :integer="field.integer"
+        />
+        <small v-if="field.hint">{{ t(field.hint) }}</small>
+      </label>
+    </div>
+  </fieldset>
 
-  <div class="grid-form">
-    <label class="field">
-      <span>{{ t('config.week') }}</span>
-      <input type="date" :value="settings.weekStart" @change="onWeekChange" />
-      <small>{{ t('config.weekHint') }}</small>
-    </label>
-    <label v-for="field in NUMBER_FIELDS" :key="field.key" class="field">
-      <span>{{ t(field.label) }}</span>
-      <NumberInput
-        v-model="settings[field.key]"
-        :min="field.min"
-        :step="field.step"
-        :integer="field.integer"
-      />
-      <small v-if="field.hint">{{ t(field.hint) }}</small>
-    </label>
-  </div>
-
-  <fieldset class="breaks">
-    <legend>{{ t('config.breaks') }}</legend>
-    <label class="check">
+  <fieldset>
+    <label>
       <input v-model="settings.breaks.enabled" type="checkbox" />
       {{ t('config.breaks') }}
     </label>
-    <small>{{ t('config.breaksHint') }}</small>
-    <div class="grid-form">
-      <label class="field">
-        <span>{{ t('config.breaksAfterHours') }}</span>
+    <p><small>{{ t('config.breaksHint') }}</small></p>
+    <div class="grid">
+      <label>
+        {{ t('config.breaksAfterHours') }}
         <NumberInput v-model="settings.breaks.afterHours" :min="0.5" :step="0.5" :disabled="!settings.breaks.enabled" />
       </label>
-      <label class="field">
-        <span>{{ t('config.breaksMinutes') }}</span>
+      <label>
+        {{ t('config.breaksMinutes') }}
         <NumberInput
           v-model="settings.breaks.minutes"
           :min="0"
@@ -109,19 +110,19 @@ function onShiftTimeChange(shift, property, event) {
     </div>
   </fieldset>
 
-  <div class="field">
-    <span>{{ t('config.openDays') }}</span>
-    <div class="days">
-      <label v-for="dayIndex in 7" :key="dayIndex - 1" class="check">
+  <fieldset>
+    <legend>{{ t('config.openDays') }}</legend>
+    <div class="row days">
+      <label v-for="dayIndex in 7" :key="dayIndex - 1">
         <input v-model="settings.openDays" type="checkbox" :value="dayIndex - 1" />
         {{ translateDay(dayIndex - 1) }}
       </label>
     </div>
-  </div>
+  </fieldset>
 
   <fieldset class="categories">
     <legend>{{ t('config.categories') }}</legend>
-    <small>{{ t('config.categoriesHint') }}</small>
+    <p><small>{{ t('config.categoriesHint') }}</small></p>
     <p v-if="categories.length === 0" class="hint">{{ t('config.categoriesEmpty') }}</p>
     <table>
       <thead>
@@ -149,7 +150,7 @@ function onShiftTimeChange(shift, property, event) {
           <td>
             <button
               type="button"
-              class="danger"
+              class="small danger"
               :disabled="!canDeleteCategory"
               :aria-label="t('config.deleteCategoryAria', { name: category.name })"
               @click="removeCategory(state, category.id)"
@@ -160,41 +161,39 @@ function onShiftTimeChange(shift, property, event) {
         </tr>
       </tbody>
     </table>
-    <div><button type="button" @click="addCategory(settings)">{{ t('config.addCategory') }}</button></div>
+    <button type="button" class="secondary" @click="addCategory(settings)">{{ t('config.addCategory') }}</button>
   </fieldset>
 
-  <div class="grid-form">
+  <div class="grid">
     <fieldset v-for="shiftKey in SHIFT_KEYS" :key="shiftKey">
       <legend>{{ translateShift(shiftKey) }}</legend>
-      <label class="field">
-        <span>{{ t('config.shiftStart') }}</span>
+      <label>
+        {{ t('config.shiftStart') }}
         <input
           type="time"
           :value="settings.shifts[shiftKey].start"
           @change="onShiftTimeChange(settings.shifts[shiftKey], 'start', $event)"
         />
       </label>
-      <label class="field">
-        <span>{{ t('config.shiftEnd') }}</span>
+      <label>
+        {{ t('config.shiftEnd') }}
         <input
           type="time"
           :value="settings.shifts[shiftKey].end"
           @change="onShiftTimeChange(settings.shifts[shiftKey], 'end', $event)"
         />
       </label>
-      <div class="field">
-        <span>{{ t('config.minimumStaff') }}</span>
-        <label v-for="category in categories" :key="category.id" class="check min-row">
-          <NumberInput
-            class="narrow"
-            :model-value="settings.shifts[shiftKey].required?.[category.id] ?? 0"
-            integer
-            @update:model-value="setShiftMinimum(settings, shiftKey, category.id, $event)"
-          />
-          {{ t('config.categoryOption', { name: category.name, rank: category.rank }) }}
-        </label>
-        <small>{{ t('config.minimumStaffHint') }}</small>
-      </div>
+      <p>{{ t('config.minimumStaff') }}</p>
+      <label v-for="category in categories" :key="category.id">
+        <NumberInput
+          class="narrow"
+          :model-value="settings.shifts[shiftKey].required?.[category.id] ?? 0"
+          integer
+          @update:model-value="setShiftMinimum(settings, shiftKey, category.id, $event)"
+        />
+        {{ t('config.categoryOption', { name: category.name, rank: category.rank }) }}
+      </label>
+      <small>{{ t('config.minimumStaffHint') }}</small>
     </fieldset>
   </div>
 </template>

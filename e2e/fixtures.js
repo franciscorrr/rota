@@ -41,9 +41,12 @@ export async function openWithExample(page) {
 /** Like openWithExample(), plus generating the schedule. */
 export async function openWithSchedule(page) {
   await openWithExample(page);
-  await page.getByRole('button', { name: 'Generar horario' }).click();
+  await generateButtons(page).first().click();
   await expect(page.locator('td.cell.work').first()).toBeVisible();
 }
+
+/** The "Generate schedule" buttons: one in the toolbar and one at the end of the page. */
+export const generateButtons = (page) => page.getByRole('button', { name: 'Generar horario' });
 
 /** Rows of the employee table. */
 export const employeeRows = (page) => page.locator('#employees tbody tr');
