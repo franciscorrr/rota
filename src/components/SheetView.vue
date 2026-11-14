@@ -110,7 +110,17 @@ function onKeydown(event) {
         </thead>
         <tbody>
           <tr v-for="(row, rowIndex) in model.rows" :key="row.id">
-            <th class="name" scope="row">{{ row.name }}<small>{{ row.category }}</small></th>
+            <th class="name" scope="row">
+              {{ row.name }}
+              <span
+                v-if="row.canLead"
+                class="lead-mark"
+                role="img"
+                :title="t('sheet.canLeadTitle')"
+                :aria-label="t('sheet.canLeadTitle')"
+              >★</span>
+              <small>{{ row.category }}</small>
+            </th>
             <td
               v-for="(cell, columnIndex) in row.cells"
               :key="columnIndex"

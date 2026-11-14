@@ -3,14 +3,15 @@
 // Everything that comes from outside (localStorage, imported JSON) goes through normalizeState(),
 // which discards invalid data and fills in missing data with defaults. It never trusts the format.
 
-import { DEFAULT_LOCALE, isLocale, translate } from './i18n.js';
 import {
+  COVERAGE_MODES,
   categoryList,
-  defaultSettings,
   lowestCategory,
   sanitizeRequired,
-  SHIFT_KEYS,
-} from './scheduler.js';
+  sanitizeStaffing,
+} from './coverage.js';
+import { DEFAULT_LOCALE, isLocale, translate } from './i18n.js';
+import { defaultSettings, SHIFT_KEYS } from './scheduler.js';
 import { nextMonday } from './time.js';
 
 const STORAGE_KEY = 'timetables.v1';
@@ -128,7 +129,7 @@ function normalizeRequired(rawShift, defaultShift, settings) {
  * @param {*} rawShift
  * @param {object} defaultShift
  * @param {object} settings Settings already with normalised categories.
- * @returns {{start: string, end: string, required: Object<string, number>}}
+ * @returns {{start: string, end: string, required: Object<string, number>, headcount: number, leaders: number}}
  */
 function normalizeShift(rawShift, defaultShift, settings) {
   const shift = rawShift ?? {};
@@ -136,6 +137,9 @@ function normalizeShift(rawShift, defaultShift, settings) {
     start: isTime(shift.start) ? shift.start : defaultShift.start,
     end: isTime(shift.end) ? shift.end : defaultShift.end,
     required: normalizeRequired(shift, defaultShift, settings),
+    // 'leaders' mode minimums: people in total and how many of them are shift leaders.
+    headcount: Math.floor(numberOr(shift.headcount, defaultShift.headcount ?? 0)),
+    leaders: Math.floor(numberOr(shift.leaders, defaultShift.leaders ?? 0)),
   };
 }
 
@@ -168,6 +172,7 @@ function normalizeSettings(rawSettings, defaults, fallbackLocale) {
   const settings = {
     weekStart: isIsoDay(raw.weekStart) ? raw.weekStart : defaults.weekStart,
     locale,
+    coverageMode: COVERAGE_MODES.includes(raw.coverageMode) ? raw.coverageMode : defaults.coverageMode,
     weeklyCap: numberOr(raw.weeklyCap, defaults.weeklyCap),
     openDays,
     daysOffPerEmployee: Math.floor(numberOr(raw.daysOffPerEmployee, defaults.daysOffPerEmployee)),
@@ -206,14 +211,15 @@ function normalizeEmployee(rawEmployee, index, settings) {
     contractHours: numberOr(rawEmployee?.contractHours, 0),
     absences: arrayOrEmpty(rawEmployee?.absences).filter(isIsoDay),
     categoryId: hasKnownCategory ? rawEmployee.categoryId : (lowestCategory(settings)?.id ?? ''),
+    canLeadShift: rawEmployee?.canLeadShift === true,
     blockedShifts: unique(blockedShifts),
     prevWeekLastShiftEnd: stringOr(rawEmployee?.prevWeekLastShiftEnd),
   };
 }
 
 /**
- * Minimum staff per day and shift (`"<ISO day>|<shift>"`). Discards entries that leave
- * no valid category.
+ * Minimum staff per day and shift (`"<ISO day>|<shift>"`): per category, and the `$headcount` /
+ * `$leaders` minimums of the 'leaders' mode. Discards entries that leave nothing valid.
  * @param {*} rawOverrides
  * @param {object} settings Normalised settings.
  * @returns {Object<string, Object<string, number>>}
@@ -223,7 +229,7 @@ function normalizeOverrides(rawOverrides, settings) {
   const entries = isObject(rawOverrides) ? Object.entries(rawOverrides) : [];
 
   for (const [key, rawRequired] of entries) {
-    const required = sanitizeRequired(settings, rawRequired);
+    const required = { ...sanitizeRequired(settings, rawRequired), ...sanitizeStaffing(rawRequired) };
     if (Object.keys(required).length > 0) overrides[key] = required;
   }
   return overrides;

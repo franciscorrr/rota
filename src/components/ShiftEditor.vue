@@ -6,13 +6,14 @@ import {
   addAssignment,
   generateForShift,
   removeAssignment,
-  setDayMinimum,
   updateAssignmentTimes,
 } from '../domain/actions.js';
-import { categoryList, categoryOf, requiredByCategory, unavailabilityReason } from '../domain/scheduler.js';
+import { categoryOf, coverageMode, tracksLeaders } from '../domain/coverage.js';
+import { unavailabilityReason } from '../domain/scheduler.js';
 import { shiftDetail } from '../domain/sheet.js';
 import { setStatus, sheetInput, state, t } from '../state.js';
-import NumberInput from './NumberInput.vue';
+import DayMinimumsByCategory from './DayMinimumsByCategory.vue';
+import DayMinimumsByLeaders from './DayMinimumsByLeaders.vue';
 
 const props = defineProps({
   day: { type: String, required: true },
@@ -24,11 +25,13 @@ const emit = defineEmits(['notice']);
 
 const UNAVAILABLE_NOTES = { absent: 'edit.absentNote', blocked: 'edit.blockedNote' };
 
+// One component per coverage mode for the minimum staff of this day and shift.
+const DAY_MINIMUMS = { categories: DayMinimumsByCategory, leaders: DayMinimumsByLeaders };
+
 const settings = computed(() => state.value.settings);
 const shift = computed(() => settings.value.shifts[props.shiftKey]);
 const detail = computed(() => shiftDetail(sheetInput.value, props.day, props.shiftKey));
-const categories = computed(() => categoryList(settings.value));
-const need = computed(() => requiredByCategory(settings.value, state.value.overrides, props.day, props.shiftKey));
+const mode = computed(() => coverageMode(settings.value));
 
 // Add form: the full shift by default.
 const employeeId = ref('');
@@ -46,11 +49,13 @@ function unavailableReason(employee) {
   return unavailabilityReason(employee, settings.value, props.day, props.shiftKey);
 }
 
-/** Text of the selector option: name, category and, if they cannot be assigned, the reason. */
+/** Text of the selector option: name, category, shift leader mark and, if they cannot be assigned, the reason. */
 function employeeLabel(employee) {
   const noteKey = UNAVAILABLE_NOTES[unavailableReason(employee)];
   const note = noteKey ? t.value(noteKey) : '';
-  return `${employee.name} · ${categoryOf(employee, settings.value)?.name ?? ''}${note}`;
+  const leaderMark = tracksLeaders(settings.value) && employee.canLeadShift ? t.value('edit.canLeadMark') : '';
+  const parts = [employee.name, categoryOf(employee, settings.value)?.name, leaderMark];
+  return `${parts.filter(Boolean).join(' · ')}${note}`;
 }
 
 function notify(message, isError = false) {
@@ -104,20 +109,7 @@ function generate() {
   <div class="shift-editor">
     <div class="row cell-head no-print">
       <div class="row mins">
-        <label
-          v-for="category in categories"
-          :key="category.id"
-          :title="t('edit.minimumOf', { name: category.name, rank: category.rank })"
-        >
-          {{ category.name.slice(0, 3) }}
-          <NumberInput
-            class="narrow"
-            :model-value="need[category.id]"
-            integer
-            :aria-label="t('edit.minimumAria', { name: category.name })"
-            @update:model-value="setDayMinimum(state, day, shiftKey, category.id, $event)"
-          />
-        </label>
+        <component :is="DAY_MINIMUMS[mode]" :day="day" :shift-key="shiftKey" />
       </div>
       <span :class="{ error: detail.status === 'under' }">{{ detail.covered }}/{{ detail.required }}</span>
       <button type="button" class="small secondary gen-shift" :title="t('edit.generateShiftTitle')" @click="generate">
@@ -127,7 +119,16 @@ function generate() {
 
     <ul class="assigned">
       <li v-for="assignment in detail.assignments" :key="assignment.id" class="row" :class="{ error: assignment.bad }">
-        <span>{{ assignment.name }}</span>
+        <span>
+          {{ assignment.name }}
+          <small
+            v-if="assignment.canLead"
+            class="lead-mark"
+            role="img"
+            :title="t('sheet.canLeadTitle')"
+            :aria-label="t('sheet.canLeadTitle')"
+          >★</small>
+        </span>
         <input
           :value="assignment.start"
           type="time"

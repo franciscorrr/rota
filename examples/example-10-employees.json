@@ -12,13 +12,13 @@
       { "id": "stock-clerk", "name": "Stock clerk", "rank": 1 }
     ],
     "shifts": {
-      "morning": { "start": "09:00", "end": "15:00", "required": { "manager": 1, "salesperson": 1, "stock-clerk": 1 } },
-      "afternoon": { "start": "15:00", "end": "21:00", "required": { "salesperson": 1, "stock-clerk": 1 } }
+      "morning": { "start": "09:00", "end": "15:00", "required": { "manager": 1, "salesperson": 1, "stock-clerk": 1 }, "headcount": 3, "leaders": 1 },
+      "afternoon": { "start": "15:00", "end": "21:00", "required": { "salesperson": 1, "stock-clerk": 1 }, "headcount": 2, "leaders": 1 }
     }
   },
   "employees": [
-    { "id": "e1", "name": "Lucía Fernández", "categoryId": "manager", "contractHours": 30, "absences": [], "prevWeekLastShiftEnd": "" },
-    { "id": "e2", "name": "Carlos Martín", "categoryId": "manager", "contractHours": 30, "absences": [], "blockedShifts": ["5|afternoon"], "prevWeekLastShiftEnd": "" },
+    { "id": "e1", "name": "Lucía Fernández", "categoryId": "manager", "canLeadShift": true, "contractHours": 30, "absences": [], "prevWeekLastShiftEnd": "" },
+    { "id": "e2", "name": "Carlos Martín", "categoryId": "manager", "canLeadShift": true, "contractHours": 30, "absences": [], "blockedShifts": ["5|afternoon"], "prevWeekLastShiftEnd": "" },
     {
       "id": "e3",
       "name": "Marta Gómez",
@@ -27,7 +27,7 @@
       "absences": ["2026-11-16", "2026-11-17", "2026-11-18"],
       "prevWeekLastShiftEnd": ""
     },
-    { "id": "e4", "name": "Javier Ruiz", "categoryId": "salesperson", "contractHours": 25, "absences": [], "prevWeekLastShiftEnd": "" },
+    { "id": "e4", "name": "Javier Ruiz", "categoryId": "salesperson", "canLeadShift": true, "contractHours": 25, "absences": [], "prevWeekLastShiftEnd": "" },
     { "id": "e5", "name": "Elena Navarro", "categoryId": "salesperson", "contractHours": 24, "absences": [], "prevWeekLastShiftEnd": "2026-11-15T21:00" },
     { "id": "e6", "name": "Pablo Sanz", "categoryId": "stock-clerk", "contractHours": 20, "absences": [], "blockedShifts": ["0|morning", "1|morning", "2|morning"], "prevWeekLastShiftEnd": "" },
     {

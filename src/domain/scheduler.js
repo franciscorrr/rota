@@ -6,8 +6,31 @@
 //  - The weekly cap is NOT a hard constraint: it only produces warnings (a decision by the manager).
 //  - "Days off": an employee works at most (open days - daysOffPerEmployee) days.
 
+import {
+  DEFAULT_COVERAGE_MODE,
+  categoryList,
+  coverageClassOf,
+  coverageClasses,
+  coverageGap,
+  requiredByClass,
+  requiresCategories,
+  shiftSupply,
+  staffWarningKey,
+} from './coverage.js';
 import { DEFAULT_LOCALE, createTranslator, translate } from './i18n.js';
-import { absMinutes, daysBetween, parseHM, weekDays } from './time.js';
+import { absMinutes, assignmentHours, daysBetween, parseHM, shiftHours, weekDays } from './time.js';
+
+// Coverage lives in coverage.js; the names that used to be defined here stay importable from this module.
+export {
+  categoryList,
+  categoryOf,
+  coverageGap,
+  lowestCategory,
+  requiredByCategory,
+  sanitizeRequired,
+  shiftSupply,
+} from './coverage.js';
+export { assignmentHours, shiftHours } from './time.js';
 
 export const SHIFT_KEYS = ['morning', 'afternoon'];
 
@@ -31,33 +54,6 @@ export function uid() {
 /** Rounds to two decimals. */
 export const round2 = (value) => Math.round(value * 100) / 100;
 
-// ---------- Categories ----------
-
-/**
- * Categories from settings, from the highest to the lowest rank (stable).
- * There are no default categories: the user has to create them.
- */
-export function categoryList(settings) {
-  const configured = settings?.categories;
-  const categories = Array.isArray(configured) ? configured : [];
-  return [...categories].sort((a, b) => b.rank - a.rank);
-}
-
-/** Lowest-rank category: the one that can cover anyone. Undefined if there is no category. */
-export function lowestCategory(settings) {
-  const categories = categoryList(settings);
-  return categories[categories.length - 1];
-}
-
-/**
- * Category of an employee; if missing or no longer configured, the lowest rank one
- * (undefined if there is no category).
- */
-export function categoryOf(employee, settings) {
-  const ownCategory = categoryList(settings).find((category) => category.id === employee?.categoryId);
-  return ownCategory ?? lowestCategory(settings);
-}
-
 // ---------- Default settings ----------
 
 export function defaultSettings(weekStart, locale = DEFAULT_LOCALE) {
@@ -71,28 +67,22 @@ export function defaultSettings(weekStart, locale = DEFAULT_LOCALE) {
     minRestHours: 12,
     // Break inside long shifts: an assignment longer than `afterHours` includes `minutes` of unpaid break.
     breaks: { enabled: false, afterHours: 6, minutes: 15 },
-    // The user creates the categories on startup; until then there is no minimum staff.
+    // How the minimum staff of a shift is defined: 'categories' (per category) or 'leaders'
+    // (total headcount plus how many of them must be shift leaders). See coverage.js.
+    coverageMode: DEFAULT_COVERAGE_MODE,
+    // The user creates the categories on startup; until then there is no minimum staff per category.
     categories: [],
-    // Minimum staff per shift and category. A higher rank covers lower-rank places,
-    // so "2 of the lowest category" is equivalent to "2 people of any category".
+    // Minimum staff per shift. 'categories' mode: `required` per category (a higher rank covers lower-rank
+    // places, so "2 of the lowest category" is equivalent to "2 people of any category").
+    // 'leaders' mode: `headcount` people in total, `leaders` of them shift leaders.
     shifts: {
-      morning: { start: '09:00', end: '15:00', required: {} },
-      afternoon: { start: '15:00', end: '21:00', required: {} },
+      morning: { start: '09:00', end: '15:00', required: {}, headcount: 0, leaders: 0 },
+      afternoon: { start: '15:00', end: '21:00', required: {}, headcount: 0, leaders: 0 },
     },
   };
 }
 
 // ---------- Hours and days ----------
-
-/** Hours a configured shift lasts ({ start, end }). */
-export function shiftHours(shift) {
-  return (parseHM(shift.end) - parseHM(shift.start)) / 60;
-}
-
-/** Hours an assignment lasts (negative if the end is before the start). */
-export function assignmentHours(assignment) {
-  return (parseHM(assignment.end) - parseHM(assignment.start)) / 60;
-}
 
 /**
  * Minutes of break included in a stretch of work lasting `grossHours`: the configured break if the
@@ -208,120 +198,6 @@ export function targetHours(employee, settings) {
 
 // ---------- Minimum staff and coverage ----------
 
-/**
- * Cleans a "minimum staff" value of unknown origin and returns it as { categoryId: n } (integer n >= 0).
- * - An object: keeps only existing categories and valid values.
- * - An integer >= 0: n people of the lowest category.
- * - Anything else: if `fallbackHeadcount` is an integer >= 0, it is used as in the previous case;
- *   otherwise returns {}.
- * @param {object} settings Settings (categories come from them).
- * @param {*} rawRequired Value to clean.
- * @param {*} [fallbackHeadcount] Alternative value used when `rawRequired` is not usable.
- * @returns {Object<string, number>}
- */
-export function sanitizeRequired(settings, rawRequired, fallbackHeadcount) {
-  const isCount = (value) => Number.isInteger(value) && value >= 0;
-  const lowestId = lowestCategory(settings)?.id;
-
-  if (rawRequired && typeof rawRequired === 'object') {
-    const required = {};
-    for (const category of categoryList(settings)) {
-      if (isCount(rawRequired[category.id])) required[category.id] = rawRequired[category.id];
-    }
-    return required;
-  }
-  if (!lowestId) return {};
-  if (isCount(rawRequired)) return { [lowestId]: rawRequired };
-  if (isCount(fallbackHeadcount)) return { [lowestId]: fallbackHeadcount };
-  return {};
-}
-
-/**
- * Minimum staff of a shift per category: { categoryId: n }. Starts from the shift minimum
- * and overrides it category by category with the day template (overrides). Defensive:
- * a bare number is interpreted as "n people of the lowest category".
- */
-export function requiredByCategory(settings, overrides, day, shiftKey) {
-  const shiftRequired = sanitizeRequired(settings, settings.shifts[shiftKey]?.required);
-  const dayRequired = sanitizeRequired(settings, overrides?.[`${day}|${shiftKey}`]);
-  const merged = { ...shiftRequired, ...dayRequired };
-
-  const result = {};
-  for (const category of categoryList(settings)) result[category.id] = merged[category.id] ?? 0;
-  return result;
-}
-
-/** Total number of people a shift needs (sum of every category). */
-export function requiredHeadcount(settings, overrides, day, shiftKey) {
-  const required = requiredByCategory(settings, overrides, day, shiftKey);
-  return Object.values(required).reduce((sum, count) => sum + count, 0);
-}
-
-/** Groups categories by rank, highest first: Map(rank -> categories of that rank). */
-function groupCategoriesByRank(settings) {
-  const groups = new Map();
-  for (const category of categoryList(settings)) {
-    if (!groups.has(category.rank)) groups.set(category.rank, []);
-    groups.get(category.rank).push(category);
-  }
-  return groups;
-}
-
-/**
- * Coverage of a shift. `supply` = { categoryId: covered places } (a person working a full shift = 1;
- * extra shifts count as a fraction). Each person occupies a single place: it is distributed from
- * the top down and any surplus high rank covers lower-rank places.
- * Returns { required, missing, byCategory: { id: { required, missing } } } (in places).
- */
-export function coverageGap(settings, need, supply) {
-  const byCategory = {};
-  let required = 0;
-  let missing = 0;
-  let surplus = 0; // surplus places of higher ranks, which can cover those of this rank
-
-  for (const categories of groupCategoriesByRank(settings).values()) {
-    const needed = categories.reduce((sum, category) => sum + (need[category.id] ?? 0), 0);
-    const supplied = categories.reduce((sum, category) => sum + (supply[category.id] ?? 0), 0);
-    const available = supplied + surplus;
-    let rankMissing = Math.max(0, needed - available);
-    surplus = Math.max(0, available - needed);
-    required += needed;
-    missing += rankMissing;
-
-    // What is missing in the rank is distributed among its categories in order.
-    for (const category of categories) {
-      const categoryNeed = need[category.id] ?? 0;
-      const categoryMissing = Math.min(categoryNeed, rankMissing);
-      rankMissing -= categoryMissing;
-      byCategory[category.id] = { required: categoryNeed, missing: categoryMissing };
-    }
-  }
-  return { required, missing, byCategory };
-}
-
-/** Places covered per category in a shift (each employee counts at most 1). */
-export function shiftSupply(settings, employees, assignments, day, shiftKey) {
-  const supply = {};
-  const shiftLength = shiftHours(settings.shifts[shiftKey]);
-  if (shiftLength <= 0) return supply;
-
-  const hoursByEmployee = new Map();
-  for (const assignment of assignments) {
-    if (assignment.day !== day || assignment.shift !== shiftKey) continue;
-    const previousHours = hoursByEmployee.get(assignment.employeeId) ?? 0;
-    hoursByEmployee.set(assignment.employeeId, previousHours + Math.max(0, assignmentHours(assignment)));
-  }
-
-  for (const employee of employees) {
-    if (!hoursByEmployee.has(employee.id)) continue;
-    const categoryId = categoryOf(employee, settings)?.id;
-    if (!categoryId) continue;
-    const places = Math.min(1, hoursByEmployee.get(employee.id) / shiftLength);
-    supply[categoryId] = (supply[categoryId] ?? 0) + places;
-  }
-  return supply;
-}
-
 /** Joins texts with commas and a final conjunction: "A, B and C". */
 function joinWithAnd(parts, locale) {
   if (parts.length <= 1) return parts[0] ?? '';
@@ -329,11 +205,11 @@ function joinWithAnd(parts, locale) {
   return `${allButLast}${translate(locale, 'sheet.joinAnd')}${parts[parts.length - 1]}`;
 }
 
-/** Text like "1 Manager and 0.5 Sales assistant" with what is missing per category. */
+/** Text like "1 Manager and 0.5 Sales assistant" with what is missing per coverage class. */
 export function describeMissing(settings, gap) {
-  const parts = categoryList(settings)
-    .filter((category) => (gap.byCategory[category.id]?.missing ?? 0) > DIFF_TOLERANCE)
-    .map((category) => `${round2(gap.byCategory[category.id].missing)} ${category.name}`);
+  const parts = coverageClasses(settings)
+    .filter((coverageClass) => (gap.byCategory[coverageClass.id]?.missing ?? 0) > DIFF_TOLERANCE)
+    .map((coverageClass) => `${round2(gap.byCategory[coverageClass.id].missing)} ${coverageClass.name}`);
   return joinWithAnd(parts, settings.locale);
 }
 
@@ -362,8 +238,8 @@ function createSlots(settings, overrides) {
         end: shift.end,
         hours: shiftHours(shift),
         netHours: netHoursFor(settings, shiftHours(shift)),
-        need: requiredByCategory(settings, overrides, day, shiftKey),
-        supply: {}, // places covered per category (extra shifts count as a fraction)
+        need: requiredByClass(settings, overrides, day, shiftKey),
+        supply: {}, // places covered per coverage class (extra shifts count as a fraction)
       });
     }
   }
@@ -378,10 +254,10 @@ function bookWorker(worker, day, interval, settings) {
 
 /** Records in a slot the places covered by an employee's work in that interval. */
 function bookSlot(slot, worker, interval, settings) {
-  const categoryId = categoryOf(worker.employee, settings)?.id;
-  if (!categoryId) return;
+  const classId = coverageClassOf(worker.employee, settings)?.id;
+  if (!classId) return;
   const places = (interval.endMin - interval.startMin) / 60 / slot.hours;
-  slot.supply[categoryId] = (slot.supply[categoryId] ?? 0) + places;
+  slot.supply[classId] = (slot.supply[classId] ?? 0) + places;
 }
 
 /**
@@ -415,11 +291,11 @@ function canWork(worker, slot, rules) {
   return true;
 }
 
-/** Places missing in a slot for the categories of a rank. */
+/** Places missing in a slot for the coverage classes of a rank. */
 function missingForRank(slot, rank, rules) {
   const gap = coverageGap(rules.settings, slot.need, slot.supply);
   return Object.entries(gap.byCategory)
-    .filter(([categoryId]) => rules.rankByCategory.get(categoryId) === rank)
+    .filter(([classId]) => rules.rankByClass.get(classId) === rank)
     .reduce((sum, [, categoryGap]) => sum + categoryGap.missing, 0);
 }
 
@@ -436,8 +312,8 @@ function findMostConstrainedSlot(slots, workers, rank, rules) {
     if (missingForRank(slot, rank, rules) <= EPSILON) continue;
 
     const candidates = workers.filter((worker) => {
-      const category = categoryOf(worker.employee, settings);
-      return Boolean(category) && category.rank >= rank
+      const coverageClass = coverageClassOf(worker.employee, settings);
+      return Boolean(coverageClass) && coverageClass.rank >= rank
         && worker.remainingHours >= slot.netHours - EPSILON
         && canWork(worker, slot, rules);
     });
@@ -452,18 +328,18 @@ function pickCandidate(candidates, settings) {
   return candidates.reduce((current, challenger) => {
     if (challenger.remainingHours > current.remainingHours + EPSILON) return challenger;
     if (challenger.remainingHours < current.remainingHours - EPSILON) return current;
-    const challengerRank = categoryOf(challenger.employee, settings)?.rank ?? 0;
-    const currentRank = categoryOf(current.employee, settings)?.rank ?? 0;
+    const challengerRank = coverageClassOf(challenger.employee, settings)?.rank ?? 0;
+    const currentRank = coverageClassOf(current.employee, settings)?.rank ?? 0;
     return challengerRank < currentRank ? challenger : current;
   });
 }
 
 /** Ranks with some minimum left to cover in the given slots, highest first. */
 function ranksWithNeeds(settings, slots) {
-  const ranks = categoryList(settings)
-    .filter((category) => slots.some((slot) => (slot.need[category.id] ?? 0) > 0))
-    .map((category) => category.rank);
-  return [...new Set(ranks)]; // categoryList is already sorted from highest to lowest
+  const ranks = coverageClasses(settings)
+    .filter((coverageClass) => slots.some((slot) => (slot.need[coverageClass.id] ?? 0) > 0))
+    .map((coverageClass) => coverageClass.rank);
+  return [...new Set(ranks)]; // coverageClasses is already sorted from highest to lowest
 }
 
 /**
@@ -486,7 +362,7 @@ export function generate(settings, employees, overrides = {}, options = {}) {
     settings,
     minRestMinutes: settings.minRestHours * 60,
     maxWorkDays: Math.max(0, openDays.length - settings.daysOffPerEmployee),
-    rankByCategory: new Map(categoryList(settings).map((category) => [category.id, category.rank])),
+    rankByClass: new Map(coverageClasses(settings).map((coverageClass) => [coverageClass.id, coverageClass.rank])),
   };
 
   const workerById = new Map(employees.map((employee) => [employee.id, createWorker(employee, settings)]));
@@ -545,7 +421,7 @@ export function generate(settings, employees, overrides = {}, options = {}) {
  */
 export function generateShift(settings, employees, overrides, assignments, day, shiftKey) {
   const result = generate(settings, employees, overrides, { keep: assignments, only: { day, shift: shiftKey } });
-  const need = requiredByCategory(settings, overrides, day, shiftKey);
+  const need = requiredByClass(settings, overrides, day, shiftKey);
   const supply = shiftSupply(settings, employees, result.assignments, day, shiftKey);
   const missingText = describeMissing(settings, coverageGap(settings, need, supply));
   return { ...result, missingText };
@@ -557,8 +433,12 @@ function createWarning(type, message, extra = {}) {
   return { type, message, ...extra };
 }
 
-/** Warns when no category exists: without one, employees cannot be assigned to a place. */
+/**
+ * Warns when no category exists in 'categories' mode: without one, employees cannot be assigned to
+ * a place. In 'leaders' mode categories are only for display, so none is needed.
+ */
 function checkCategories(settings) {
+  if (!requiresCategories(settings)) return [];
   if (categoryList(settings).length > 0) return [];
   return [createWarning('config', createTranslator(settings.locale)('warning.noCategories'))];
 }
@@ -786,7 +666,7 @@ function checkCoverage(settings, employees, overrides, assignments) {
     for (const shiftKey of SHIFT_KEYS) {
       if (shiftHours(settings.shifts[shiftKey]) <= 0) continue;
 
-      const need = requiredByCategory(settings, overrides, day, shiftKey);
+      const need = requiredByClass(settings, overrides, day, shiftKey);
       const supply = shiftSupply(settings, employees, assignments, day, shiftKey);
       const gap = coverageGap(settings, need, supply);
       if (gap.missing <= DIFF_TOLERANCE) continue;
@@ -809,23 +689,25 @@ function checkCoverage(settings, employees, overrides, assignments) {
 }
 
 /**
- * Warns about categories for which there are not enough employees (of that category or higher)
+ * Warns about coverage classes for which there are not enough employees (of that class or higher)
  * for the minimum staff. It only counts how many people exist, not their availability.
- * One warning per category.
+ * One warning per class (per category, or for shift leaders and staff).
  */
 function checkStaffing(settings, employees, overrides) {
   const warnings = [];
   if (employees.length === 0) return warnings;
 
   const t = createTranslator(settings.locale);
-  const categories = categoryList(settings);
+  const classes = coverageClasses(settings);
   const needs = openDayList(settings).flatMap((day) => (
-    SHIFT_KEYS.map((shiftKey) => requiredByCategory(settings, overrides, day, shiftKey))
+    SHIFT_KEYS.map((shiftKey) => requiredByClass(settings, overrides, day, shiftKey))
   ));
 
-  for (const category of categories) {
-    const available = employees.filter((employee) => (categoryOf(employee, settings)?.rank ?? 0) >= category.rank).length;
-    const rankedUp = categories.filter((other) => other.rank >= category.rank);
+  for (const coverageClass of classes) {
+    const available = employees
+      .filter((employee) => (coverageClassOf(employee, settings)?.rank ?? 0) >= coverageClass.rank)
+      .length;
+    const rankedUp = classes.filter((other) => other.rank >= coverageClass.rank);
     const peakNeeded = needs.reduce((peak, need) => (
       Math.max(peak, rankedUp.reduce((sum, other) => sum + need[other.id], 0))
     ), 0);
@@ -833,7 +715,11 @@ function checkStaffing(settings, employees, overrides) {
     if (peakNeeded > available) {
       warnings.push(createWarning(
         'staff',
-        t('warning.staff', { needed: peakNeeded, category: category.name, available }),
+        t(staffWarningKey(settings, coverageClass.id), {
+          needed: peakNeeded,
+          category: coverageClass.name,
+          available,
+        }),
       ));
     }
   }

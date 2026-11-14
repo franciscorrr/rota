@@ -259,3 +259,76 @@ test('shiftHours adds up the net hours of every employee in each shift', () => {
   assert.equal(model.shiftHours.length, model.columns.length);
   assert.deepEqual(model.shiftHours.slice(0, 3), [9.5, 3, 0]);
 });
+
+// ---------- 'leaders' coverage mode ----------
+
+function leadersSheetSettings() {
+  const settings = defaultSettings(WEEK, 'en');
+  settings.coverageMode = 'leaders';
+  settings.shifts.morning.headcount = 3;
+  settings.shifts.morning.leaders = 1;
+  settings.shifts.afternoon.headcount = 2;
+  settings.shifts.afternoon.leaders = 1;
+  return settings;
+}
+
+const leaderEmp = (id, name, canLeadShift) => ({ ...emp(id, name), canLeadShift });
+
+test('leaders mode: the coverage row counts people and tells which class is missing', () => {
+  const employees = [leaderEmp('e1', 'Ana', false), leaderEmp('e2', 'Luis', false), leaderEmp('e3', 'Eva', true)];
+  const assignments = [
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a2', employeeId: 'e2', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
+  ];
+  const { model } = setup({ employees, assignments, settings: leadersSheetSettings() });
+  const monday = model.coverage[0];
+
+  assert.equal(monday.required, 3);
+  assert.equal(monday.covered, 2);
+  assert.equal(monday.status, 'under');
+  assert.equal(monday.missingText, '1 shift leader');
+  assert.deepEqual(monday.categories.map((c) => [c.name, c.required, c.missing]), [
+    ['shift leader', 1, 1],
+    ['staff', 2, 0],
+  ]);
+});
+
+test('leaders mode: rows and shift detail flag who can lead; categories mode never does', () => {
+  const employees = [leaderEmp('e1', 'Ana', true), leaderEmp('e2', 'Luis', false)];
+  const assignments = [
+    { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
+    { id: 'a2', employeeId: 'e2', day: MON, shift: 'morning', start: '09:00', end: '15:00' },
+  ];
+  const settings = leadersSheetSettings();
+  const { model } = setup({ employees, assignments, settings });
+  assert.deepEqual(model.rows.map((row) => row.canLead), [true, false]);
+
+  const input = { settings, employees, overrides: {}, assignments };
+  const detail = shiftDetail(input, MON, 'morning');
+  assert.deepEqual(detail.assignments.map((a) => a.canLead), [true, false]);
+  assert.deepEqual(detail.categories.map((c) => [c.name, c.required, c.missing, c.isShort]), [
+    ['shift leader', 1, 0, false],
+    ['staff', 2, 1, true],
+  ]);
+  assert.equal(cellDetail(input, 'e1', MON, 'morning').canLead, true);
+
+  const categories = setup({ employees, assignments }).model;
+  assert.deepEqual(categories.rows.map((row) => row.canLead), [false, false]);
+});
+
+test('leaders mode: shift detail marks the classes changed by a day template', () => {
+  const settings = leadersSheetSettings();
+  const input = { settings, employees: [], overrides: { [`${MON}|morning`]: { $headcount: 6 } }, assignments: [] };
+  const detail = shiftDetail(input, MON, 'morning');
+  assert.equal(detail.required, 6);
+  assert.deepEqual(detail.categories.map((c) => [c.name, c.overridden]), [['shift leader', false], ['staff', true]]);
+  assert.equal(shiftDetail(input, TUE, 'morning').categories.every((c) => !c.overridden), true);
+});
+
+test('leaders mode: describeCell on the coverage row names the classes', () => {
+  const employees = [leaderEmp('e1', 'Ana', true)];
+  const { model } = setup({ employees, assignments: [], settings: leadersSheetSettings() });
+  const text = describeCell(model, model.rows.length, 0);
+  assert.match(text, /0 of 3 places covered/);
+  assert.match(text, /shift leader 0\/1, staff 0\/2/);
+});

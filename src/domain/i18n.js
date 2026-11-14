@@ -86,6 +86,20 @@ const es = {
   'config.categoryOption': '{name} (rango {rank})',
   'config.minimumStaffHint': 'Mínimo por categoría; la de rango mayor puede cubrir plazas de rango menor. '
     + 'Se puede cambiar día a día en la Edición.',
+  'config.coverageMode': 'Cómo se define el personal mínimo',
+  'config.coverageModeCategories': 'Por categorías',
+  'config.coverageModeLeaders': 'Personas y responsables de turno',
+  'config.coverageModeHint': 'Por categorías: indicas cuántas personas de cada categoría hacen falta. '
+    + 'Personas y responsables de turno: indicas cuántas personas hacen falta y cuántas de ellas deben ser '
+    + 'responsables de turno (los empleados que pueden serlo se marcan en la tabla de empleados). '
+    + 'Cada modo conserva su configuración al cambiar.',
+  'config.categoriesHintLeaders': 'En este modo las categorías son opcionales y solo se muestran: '
+    + 'no se usan para cubrir los turnos.',
+  'config.categoriesEmptyLeaders': 'No hay categorías. En este modo son opcionales.',
+  'config.headcount': 'Personas',
+  'config.leaders': 'Responsables de turno',
+  'config.leadersHint': 'Los responsables de turno cuentan dentro del total de personas. '
+    + 'Se puede cambiar día a día en la Edición.',
 
   // ---------- Employees ----------
   'employees.empty': 'Aún no hay empleados. Añade el primero para poder generar un horario.',
@@ -100,6 +114,9 @@ const es = {
   'employees.createCategory': 'Crear una categoría',
   'employees.nameAria': 'Nombre',
   'employees.categoryAria': 'Categoría de {name}',
+  'employees.canLead': 'Responsable de turno',
+  'employees.canLeadAria': '{name} puede ser responsable de turno',
+  'employees.noCategory': 'Sin categoría',
   'employees.contractAria': 'Horas contratadas semanales',
   'employees.dayTitle': '{day} {date}',
   'employees.absentAll': 'Toda la semana',
@@ -163,6 +180,10 @@ const es = {
   'sheet.coverageDetail': '{where}: cubiertas {covered} de {required} plazas{detail}',
   'sheet.removedEmployee': '(eliminado)',
   'sheet.joinAnd': ' y ',
+  'sheet.canLeadTitle': 'Puede ser responsable de turno',
+  // Coverage classes of the "personas y responsables de turno" mode (they appear in "falta cubrir 1 ...").
+  'coverage.leader': 'responsable de turno',
+  'coverage.staff': 'personal',
 
   // ---------- Shift popup ----------
   'shiftPopup.coverage': 'Cobertura: {covered}/{required}{suffix}',
@@ -172,6 +193,7 @@ const es = {
 
   // ---------- Cell editor ----------
   'cellEditor.fullShift': '{category} · turno completo {start}–{end}',
+  'cellEditor.fullShiftNoCategory': 'Turno completo {start}–{end}',
   'cellEditor.totalHours': 'Total en este turno: {hours} h (descansos descontados)',
   'cellEditor.startAria': 'Inicio',
   'cellEditor.endAria': 'Fin',
@@ -191,6 +213,13 @@ const es = {
   'edit.generateShiftTitle': 'Completa este turno automáticamente (conserva lo ya asignado y no toca el resto)',
   'edit.minimumOf': 'Mínimo de {name} (rango {rank})',
   'edit.minimumAria': 'Mínimo de {name}',
+  'edit.headcountShort': 'Pers.',
+  'edit.leadersShort': 'Resp.',
+  'edit.headcountAria': 'Personas mínimas',
+  'edit.leadersAria': 'Responsables de turno mínimos',
+  'edit.headcountTitle': 'Personas mínimas del turno (incluye a los responsables)',
+  'edit.leadersTitle': 'Responsables de turno mínimos',
+  'edit.canLeadMark': 'responsable de turno',
   'edit.absentNote': ' (ausente)',
   'edit.blockedNote': ' (bloqueado)',
   'edit.removeAria': 'Quitar a {name}',
@@ -235,6 +264,10 @@ const es = {
   'warning.unfilled': '{day} {shift}: falta cubrir {missing} (cubiertas {covered} de {required} plazas).',
   'warning.staff': 'Hay turnos que necesitan {needed} persona(s) de categoría {category} o superior a la vez, '
     + 'pero solo hay {available} empleado(s) así.',
+  'warning.staffLeaders': 'Hay turnos que necesitan {needed} responsable(s) de turno a la vez, '
+    + 'pero solo hay {available} empleado(s) marcado(s) como responsable de turno.',
+  'warning.staffHeadcount': 'Hay turnos que necesitan {needed} persona(s) a la vez, '
+    + 'pero solo hay {available} empleado(s).',
   'warning.capContracts': 'Las horas contratadas ({contract} h) superan el límite semanal ({cap} h): '
     + 'no es posible cumplir ambas cosas.',
   'warning.cap': 'Horas planificadas + ausencias ({planned} h) superan el límite semanal ({cap} h).',
@@ -345,6 +378,19 @@ const en = {
   'config.categoryOption': '{name} (rank {rank})',
   'config.minimumStaffHint': 'Minimum per category; a higher rank can fill lower-rank places. '
     + 'It can be changed day by day in Edit.',
+  'config.coverageMode': 'How minimum staff is defined',
+  'config.coverageModeCategories': 'By category',
+  'config.coverageModeLeaders': 'Headcount and shift leaders',
+  'config.coverageModeHint': 'By category: you set how many people of each category are needed. '
+    + 'Headcount and shift leaders: you set how many people are needed and how many of them must be shift '
+    + 'leaders (mark who can be one in the employees table). Each mode keeps its own settings when you switch.',
+  'config.categoriesHintLeaders': 'In this mode categories are optional and only displayed: '
+    + 'they are not used to cover shifts.',
+  'config.categoriesEmptyLeaders': 'There are no categories. They are optional in this mode.',
+  'config.headcount': 'People',
+  'config.leaders': 'Shift leaders',
+  'config.leadersHint': 'Shift leaders count within the total number of people. '
+    + 'It can be changed day by day in Edit.',
 
   // ---------- Employees ----------
   // ---------- Employees ----------
@@ -360,6 +406,9 @@ const en = {
   'employees.createCategory': 'Create a category',
   'employees.nameAria': 'Name',
   'employees.categoryAria': 'Category of {name}',
+  'employees.canLead': 'Shift leader',
+  'employees.canLeadAria': '{name} can be a shift leader',
+  'employees.noCategory': 'No category',
   'employees.contractAria': 'Weekly contracted hours',
   'employees.dayTitle': '{day} {date}',
   'employees.absentAll': 'Whole week',
@@ -423,6 +472,10 @@ const en = {
   'sheet.coverageDetail': '{where}: {covered} of {required} places covered{detail}',
   'sheet.removedEmployee': '(deleted)',
   'sheet.joinAnd': ' and ',
+  'sheet.canLeadTitle': 'Can be a shift leader',
+  // Coverage classes of the "headcount and shift leaders" mode (they appear in "still missing 1 ...").
+  'coverage.leader': 'shift leader',
+  'coverage.staff': 'staff',
 
   // ---------- Shift popup ----------
   'shiftPopup.coverage': 'Coverage: {covered}/{required}{suffix}',
@@ -432,6 +485,7 @@ const en = {
 
   // ---------- Cell editor ----------
   'cellEditor.fullShift': '{category} · full shift {start}–{end}',
+  'cellEditor.fullShiftNoCategory': 'Full shift {start}–{end}',
   'cellEditor.totalHours': 'Total in this shift: {hours} h (breaks subtracted)',
   'cellEditor.startAria': 'Start',
   'cellEditor.endAria': 'End',
@@ -452,6 +506,13 @@ const en = {
     + 'the rest alone)',
   'edit.minimumOf': 'Minimum of {name} (rank {rank})',
   'edit.minimumAria': 'Minimum of {name}',
+  'edit.headcountShort': 'People',
+  'edit.leadersShort': 'Lead.',
+  'edit.headcountAria': 'Minimum people',
+  'edit.leadersAria': 'Minimum shift leaders',
+  'edit.headcountTitle': 'Minimum people in the shift (shift leaders included)',
+  'edit.leadersTitle': 'Minimum shift leaders',
+  'edit.canLeadMark': 'shift leader',
   'edit.absentNote': ' (absent)',
   'edit.blockedNote': ' (blocked)',
   'edit.removeAria': 'Remove {name}',
@@ -494,6 +555,10 @@ const en = {
   'warning.unfilled': '{day} {shift}: still missing {missing} (covered {covered} of {required} places).',
   'warning.staff': 'Some shifts need {needed} person(s) of category {category} or higher at the same time, '
     + 'but there are only {available} such employee(s).',
+  'warning.staffLeaders': 'Some shifts need {needed} shift leader(s) at the same time, '
+    + 'but only {available} employee(s) are marked as shift leaders.',
+  'warning.staffHeadcount': 'Some shifts need {needed} person(s) at the same time, '
+    + 'but there are only {available} employee(s).',
   'warning.capContracts': 'Contracted hours ({contract} h) exceed the weekly limit ({cap} h): '
     + 'it is not possible to meet both.',
   'warning.cap': 'Planned hours + absences ({planned} h) exceed the weekly limit ({cap} h).',

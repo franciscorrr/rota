@@ -12,26 +12,32 @@ import {
   rename,
   setAbsence,
   setAbsentAllWeek,
+  setCanLeadShift,
   unblockShift,
 } from '../domain/actions.js';
-import { categoryList, categoryOf } from '../domain/scheduler.js';
+import { categoryList, categoryOf, requiresCategories, tracksLeaders } from '../domain/coverage.js';
 import { weekDays } from '../domain/time.js';
 import { state, t, translateDay, translateDayShort } from '../state.js';
 import NumberInput from './NumberInput.vue';
 
-const TABLE_HEADERS = [
+const settings = computed(() => state.value.settings);
+const categories = computed(() => categoryList(settings.value));
+const hasCategories = computed(() => categories.value.length > 0);
+// Categories are mandatory in 'categories' mode; in 'leaders' mode they are optional and employees get a leader flag.
+const needsCategory = computed(() => requiresCategories(settings.value));
+const canAddEmployee = computed(() => !needsCategory.value || hasCategories.value);
+const showsLeaders = computed(() => tracksLeaders(settings.value));
+
+const tableHeaders = computed(() => [
   'employees.name',
   'employees.category',
+  ...(showsLeaders.value ? ['employees.canLead'] : []),
   'employees.contract',
   'employees.absences',
   'employees.blocked',
   'employees.prevWeek',
   '',
-];
-
-const settings = computed(() => state.value.settings);
-const categories = computed(() => categoryList(settings.value));
-const hasCategories = computed(() => categories.value.length > 0);
+]);
 const blockOptions = computed(() => blockableShifts(settings.value));
 
 /** The 7 ISO days of the week with their index, only the open ones. */
@@ -59,7 +65,7 @@ function onBlockSelected(employee, event) {
   <div v-else class="overflow-auto">
     <table>
       <thead>
-        <tr><th v-for="header in TABLE_HEADERS" :key="header">{{ header ? t(header) : '' }}</th></tr>
+        <tr><th v-for="header in tableHeaders" :key="header">{{ header ? t(header) : '' }}</th></tr>
       </thead>
       <tbody>
         <tr v-for="employee in state.employees" :key="employee.id">
@@ -77,10 +83,19 @@ function onBlockSelected(employee, event) {
               :value="categoryOf(employee, settings)?.id ?? ''"
               @change="employee.categoryId = $event.target.value"
             >
+              <option v-if="!hasCategories" value="">{{ t('employees.noCategory') }}</option>
               <option v-for="category in categories" :key="category.id" :value="category.id">
                 {{ t('config.categoryOption', { name: category.name, rank: category.rank }) }}
               </option>
             </select>
+          </td>
+          <td v-if="showsLeaders">
+            <input
+              type="checkbox"
+              :checked="employee.canLeadShift"
+              :aria-label="t('employees.canLeadAria', { name: employee.name })"
+              @change="setCanLeadShift(employee, $event.target.checked)"
+            />
           </td>
           <td>
             <NumberInput
@@ -162,14 +177,14 @@ function onBlockSelected(employee, event) {
       </tbody>
     </table>
   </div>
-  <div v-if="!hasCategories" class="warn">
+  <div v-if="needsCategory && !hasCategories" class="warn">
     <p>{{ t('employees.needsCategory') }}</p>
     <button type="button" class="secondary" @click="addCategory(settings)">{{ t('employees.createCategory') }}</button>
   </div>
   <button
     type="button"
-    :disabled="!hasCategories"
-    :title="hasCategories ? '' : t('config.categoriesEmpty')"
+    :disabled="!canAddEmployee"
+    :title="canAddEmployee ? '' : t('config.categoriesEmpty')"
     @click="addEmployee(state)"
   >
     {{ t('employees.add') }}

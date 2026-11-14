@@ -32,7 +32,7 @@ Then open http://localhost:8080. The image is built in two stages: Node generate
 
 To see a demo, click **Import JSON** and choose `examples/example-10-employees.json`; then click **Generate schedule**.
 
-When you start from scratch there are no categories: create at least one in the settings before adding employees.
+When you start from scratch there are no categories: create at least one in the settings before adding employees (or switch to the **headcount and shift leaders** mode, where categories are optional).
 
 ## Languages
 
@@ -55,13 +55,14 @@ The interface is available in **Spanish** and **English**. The **Language** sele
 | Opening days | Monday to Saturday |
 | Days off per employee | 1 |
 | Contract working days (to prorate absences) | 5 |
-| Categories | None: create at least one before adding employees |
-| Morning | 09:00–15:00, minimum staff: none until categories are created |
-| Afternoon | 15:00–21:00, minimum staff: none until categories are created |
+| How minimum staff is defined | By category (the other option is headcount and shift leaders) |
+| Categories | None: create at least one before adding employees (optional in the headcount and shift leaders mode) |
+| Morning | 09:00–15:00, minimum staff: none until you set it |
+| Afternoon | 15:00–21:00, minimum staff: none until you set it |
 
 The minimum staff of each shift can be changed day by day in the **Edit** view.
 
-Per employee: name, category, contracted hours per week, absences (holidays or sick leave, per day; the **Whole week** button marks all opening days at once and, when they are all marked, becomes **Clear all**), **blocked shifts** (zero or more, e.g. "Saturday afternoon") and, optionally, the end of their last shift of the previous week so rest between weeks is respected.
+Per employee: name, category, whether they **can be a shift leader** (only in the headcount and shift leaders mode), contracted hours per week, absences (holidays or sick leave, per day; the **Whole week** button marks all opening days at once and, when they are all marked, becomes **Clear all**), **blocked shifts** (zero or more, e.g. "Saturday afternoon") and, optionally, the end of their last shift of the previous week so rest between weeks is respected.
 
 ## Categories and minimum staff
 
@@ -76,6 +77,20 @@ For each shift (morning and afternoon) you set the **minimum staff per category*
 - In **Edit** you can change the minimum of each category for a specific day and shift. In the **Sheet**, the coverage row shows which category is missing.
 - If you ask for more people of a category (or higher) than exist, the "Staffing" warning appears.
 - Deleting a category moves its employees to the remaining lowest-rank category and discards the minimums that mentioned it.
+
+## Headcount and shift leaders
+
+The second way to define minimum staff, simpler than categories. Choose **Headcount and shift leaders** under **How minimum staff is defined** in the settings. Each mode keeps its own settings, so you can switch back and forth without losing anything.
+
+For each shift you set **how many people** are needed and **how many of them must be shift leaders** (for example, 4 people, 1 of them a shift leader). In the employee table, tick **Shift leader** for everyone who can take that role.
+
+- **Shift leaders count inside the total.** "4 people, 1 shift leader" means 1 leader + 3 staff. If you ask for more leaders than people, the headcount grows to the number of leaders.
+- **A leader covers a staff place, never the other way round.** An extra leader fills a staff place; a person who is not marked as a shift leader never fills a leader place. It uses the same rules as categories (rank 2 = shift leader, rank 1 = staff).
+- **Being a shift leader is a qualification, not a fixed post**: a marked employee is the shift leader only in the shifts where the schedule needs one and they are assigned.
+- **Categories are only displayed** in this mode (in the employee table and the sheet): the generator and the warnings do not use them, and they are optional, so you can add employees without creating any. Employees who can lead a shift show a ★ in the sheet and the shift editor.
+- In **Edit** (and in the shift popup of the **Sheet**) you can change the people and the shift leaders of a specific day and shift. The sheet coverage row counts people and says what is missing ("1 shift leader and 2 staff").
+- The generator fills the shift leader places first, then the staff places. If nobody can lead a shift, it stays short and says "still missing 1 shift leader".
+- If you ask for more shift leaders (or people) than there are employees, the "Staffing" warning appears.
 
 ## Breaks within the shift
 
@@ -139,8 +154,8 @@ The **Generate shift** button (in each Edit view cell) and **Generate this shift
 
 | Warning | Meaning |
 | --- | --- |
-| Insufficient coverage | A shift does not meet its minimum staff; it shows which category is missing |
-| Staffing | More people of a category (or higher) are requested than exist |
+| Insufficient coverage | A shift does not meet its minimum staff; it shows which category (or whether shift leaders or staff) is missing |
+| Staffing | More people of a category (or higher), or more shift leaders, are requested than exist |
 | Hours below or above target | An employee is short of or over their contract (minus absences) |
 | Insufficient rest / overlapping shifts | Less than the minimum rest between two shifts, or two shifts at the same time |
 | Assigned absentee, assigned blocked shift, closed day | There is a shift on an absence day, on a blocked shift or on a closing day |
@@ -155,7 +170,7 @@ The **Generate shift** button (in each Edit view cell) and **Generate this shift
 - Days off are counted only among opening days: with Sunday closed and 1 day off, each employee actually rests 2 days. Check the minimum required by your collective agreement; the app does not assume any rule.
 - The generator is greedy: it does not look for the optimal distribution and may leave someone below their target even when a better solution exists. Warnings and manual editing help correct it.
 - Shifts cannot cross midnight.
-- Coverage per category counts fractions: two Manager shifts from 09:00 to 12:00 add up to "1 Manager" even when there is nobody from 12:00 to 15:00. Review shorter shifts of high categories by hand.
+- Coverage counts fractions (per category, and per shift leader in the headcount and shift leaders mode): two Manager shifts from 09:00 to 12:00 add up to "1 Manager" even when there is nobody from 12:00 to 15:00. Review shorter shifts of high categories by hand.
 - Blocks are recurring: there are no single-week blocks (use absences for that).
 - Changing the week clears the schedule and the day templates (absences are stored by date and are kept).
 
@@ -174,25 +189,30 @@ This is the format the application exports and imports (see `examples/example-10
     "contractDaysPerWeek": 5,
     "minRestHours": 12,
     "breaks": { "enabled": false, "afterHours": 6, "minutes": 15 },  // optional; unpaid break in long assignments
+    "coverageMode": "categories",     // optional: "categories" (default) | "leaders" (headcount and shift leaders)
     "categories": [
       { "id": "manager",     "name": "Manager",     "rank": 3 },
       { "id": "salesperson", "name": "Salesperson", "rank": 2 },
       { "id": "stock-clerk",  "name": "Stock clerk", "rank": 1 }
     ],
-    "shifts": {   // "required" = minimum staff per category
-      "morning":   { "start": "09:00", "end": "15:00", "required": { "manager": 1, "salesperson": 1, "stock-clerk": 1 } },
-      "afternoon": { "start": "15:00", "end": "21:00", "required": { "salesperson": 1, "stock-clerk": 1 } }
+    "shifts": {   // "required" = minimum staff per category; "headcount" and "leaders" = the same for the "leaders" mode
+      "morning":   { "start": "09:00", "end": "15:00", "required": { "manager": 1, "salesperson": 1, "stock-clerk": 1 }, "headcount": 3, "leaders": 1 },
+      "afternoon": { "start": "15:00", "end": "21:00", "required": { "salesperson": 1, "stock-clerk": 1 }, "headcount": 2, "leaders": 1 }
     }
   },
   "employees": [
     {
       "id": "e1", "name": "Lucía Fernández", "categoryId": "manager", "contractHours": 30,
+      "canLeadShift": true,                             // optional; can be a shift leader ("leaders" mode)
       "absences": ["2026-11-16"],                       // ISO dates
       "blockedShifts": ["5|afternoon"],                 // "<day 0-6>|<morning|afternoon>", repeats every week
       "prevWeekLastShiftEnd": "2026-11-15T21:00"        // optional
     }
   ],
-  "overrides": { "2026-11-21|morning": { "mozo": 2 } },  // minimum per day and shift (only the listed categories)
+  "overrides": {                                         // minimum per day and shift (only what is listed replaces the shift value)
+    "2026-11-21|morning": { "stock-clerk": 2 },          // "categories" mode: per category
+    "2026-11-20|morning": { "$headcount": 5, "$leaders": 2 }  // "leaders" mode: people and shift leaders ($ = reserved key)
+  },
   "assignments": [
     { "id": "a1", "employeeId": "e1", "day": "2026-11-16", "shift": "morning",
       "start": "09:00", "end": "15:00" }
@@ -200,7 +220,7 @@ This is the format the application exports and imports (see `examples/example-10
 }
 ```
 
-When importing, missing or invalid fields are replaced by the default values, except categories: they are user data, so a file without them starts with none and asks you to create one.
+When importing, missing or invalid fields are replaced by the default values, except categories: they are user data, so a file without them starts with none and asks you to create one in the default mode. A file without `coverageMode` loads in the "categories" mode, as before.
 
 ## Development
 

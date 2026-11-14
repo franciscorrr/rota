@@ -22,6 +22,16 @@ export function parseHM(hm) {
   return hours * 60 + minutes;
 }
 
+/** Hours a configured shift lasts ({ start, end }). */
+export function shiftHours(shift) {
+  return (parseHM(shift.end) - parseHM(shift.start)) / 60;
+}
+
+/** Hours an assignment lasts (negative if the end is before the start). */
+export function assignmentHours(assignment) {
+  return (parseHM(assignment.end) - parseHM(assignment.start)) / 60;
+}
+
 /** 570 -> "09:30". */
 export function formatHM(totalMinutes) {
   const hours = Math.floor(totalMinutes / 60);

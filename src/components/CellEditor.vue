@@ -22,7 +22,8 @@ const cannotAssignReason = computed(() => (
   detail.absent ? t.value('cellEditor.absentReason') : t.value('cellEditor.blockedReason')
 ));
 
-const shiftRange = computed(() => t.value('cellEditor.fullShift', {
+// Employees may have no category in the 'leaders' coverage mode, so there is a variant without it.
+const shiftRange = computed(() => t.value(detail.category ? 'cellEditor.fullShift' : 'cellEditor.fullShiftNoCategory', {
   category: detail.category,
   start: detail.shiftStart,
   end: detail.shiftEnd,
@@ -56,7 +57,16 @@ function remove(assignmentId) {
     <header>
       <h3 id="cell-editor-title">{{ detail.title }}</h3>
     </header>
-    <p class="hint">{{ shiftRange }}</p>
+    <p class="hint">
+      {{ shiftRange }}
+      <span
+        v-if="detail.canLead"
+        class="lead-mark"
+        role="img"
+        :title="t('sheet.canLeadTitle')"
+        :aria-label="t('sheet.canLeadTitle')"
+      >★</span>
+    </p>
 
     <template v-if="rows.length > 0">
       <p class="cell-total">{{ t('cellEditor.totalHours', { hours: detail.hours }) }}</p>

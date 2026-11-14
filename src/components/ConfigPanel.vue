@@ -6,13 +6,24 @@ import {
   changeWeek,
   removeCategory,
   rename,
-  setShiftMinimum,
+  setCoverageMode,
   setShiftTime,
 } from '../domain/actions.js';
+import { COVERAGE_MODES, categoryList, coverageMode, requiresCategories } from '../domain/coverage.js';
 import { localeOptions } from '../domain/i18n.js';
-import { SHIFT_KEYS, categoryList } from '../domain/scheduler.js';
+import { SHIFT_KEYS } from '../domain/scheduler.js';
 import { locale, setLocale, setStatus, state, t, translateDay, translateShift } from '../state.js';
 import NumberInput from './NumberInput.vue';
+import ShiftMinimumsByCategory from './ShiftMinimumsByCategory.vue';
+import ShiftMinimumsByLeaders from './ShiftMinimumsByLeaders.vue';
+
+const COVERAGE_MODE_LABELS = {
+  categories: 'config.coverageModeCategories',
+  leaders: 'config.coverageModeLeaders',
+};
+
+// One component per coverage mode for the minimum staff of a shift.
+const SHIFT_MINIMUMS = { categories: ShiftMinimumsByCategory, leaders: ShiftMinimumsByLeaders };
 
 const NUMBER_FIELDS = [
   {
@@ -43,7 +54,9 @@ const NUMBER_FIELDS = [
 
 const settings = computed(() => state.value.settings);
 const categories = computed(() => categoryList(settings.value));
-const canDeleteCategory = computed(() => settings.value.categories.length > 1);
+const mode = computed(() => coverageMode(settings.value));
+const categoriesRequired = computed(() => requiresCategories(settings.value));
+const canDeleteCategory = computed(() => !categoriesRequired.value || settings.value.categories.length > 1);
 const languages = computed(() => localeOptions(locale.value));
 
 /** Choosing a day snaps it to the Monday of that week and clears the schedule. */
@@ -120,10 +133,29 @@ function onShiftTimeChange(shift, property, event) {
     </div>
   </fieldset>
 
+  <fieldset class="coverage-mode">
+    <legend>{{ t('config.coverageMode') }}</legend>
+    <div class="row">
+      <label v-for="coverageModeId in COVERAGE_MODES" :key="coverageModeId">
+        <input
+          type="radio"
+          name="coverage-mode"
+          :value="coverageModeId"
+          :checked="mode === coverageModeId"
+          @change="setCoverageMode(settings, coverageModeId)"
+        />
+        {{ t(COVERAGE_MODE_LABELS[coverageModeId]) }}
+      </label>
+    </div>
+    <p><small>{{ t('config.coverageModeHint') }}</small></p>
+  </fieldset>
+
   <fieldset class="categories">
     <legend>{{ t('config.categories') }}</legend>
-    <p><small>{{ t('config.categoriesHint') }}</small></p>
-    <p v-if="categories.length === 0" class="hint">{{ t('config.categoriesEmpty') }}</p>
+    <p><small>{{ t(categoriesRequired ? 'config.categoriesHint' : 'config.categoriesHintLeaders') }}</small></p>
+    <p v-if="categories.length === 0" class="hint">
+      {{ t(categoriesRequired ? 'config.categoriesEmpty' : 'config.categoriesEmptyLeaders') }}
+    </p>
     <table>
       <thead>
         <tr><th>{{ t('config.category') }}</th><th>{{ t('config.rank') }}</th><th></th></tr>
@@ -183,17 +215,7 @@ function onShiftTimeChange(shift, property, event) {
           @change="onShiftTimeChange(settings.shifts[shiftKey], 'end', $event)"
         />
       </label>
-      <p>{{ t('config.minimumStaff') }}</p>
-      <label v-for="category in categories" :key="category.id">
-        <NumberInput
-          class="narrow"
-          :model-value="settings.shifts[shiftKey].required?.[category.id] ?? 0"
-          integer
-          @update:model-value="setShiftMinimum(settings, shiftKey, category.id, $event)"
-        />
-        {{ t('config.categoryOption', { name: category.name, rank: category.rank }) }}
-      </label>
-      <small>{{ t('config.minimumStaffHint') }}</small>
+      <component :is="SHIFT_MINIMUMS[mode]" :shift-key="shiftKey" />
     </fieldset>
   </div>
 </template>

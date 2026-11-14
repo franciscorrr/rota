@@ -13,15 +13,21 @@ import {
   shiftLabelLower,
   translate,
 } from './i18n.js';
+import {
+  COVERAGE_MODES,
+  STAFFING_FIELDS,
+  categoryList,
+  lowestCategory,
+  requiredByCategory,
+  requiresCategories,
+  shiftStaffing,
+} from './coverage.js';
 import { daysBetween, mondayOf } from './time.js';
 import {
   SHIFT_KEYS,
   blockKey,
-  categoryList,
   generate,
   generateShift,
-  lowestCategory,
-  requiredByCategory,
   uid,
 } from './scheduler.js';
 
@@ -109,12 +115,17 @@ export function clearAssignments(state) {
 
 // ---------- Generate ----------
 
+/** Is there something missing for the active coverage mode to work (a category, in 'categories' mode)? */
+function lacksCategories(settings) {
+  return requiresCategories(settings) && categoryList(settings).length === 0;
+}
+
 /**
  * Generates the schedule for the whole week, replacing the current assignments.
- * @returns {boolean} false if there are no employees or categories (it does nothing).
+ * @returns {boolean} false if there are no employees, or no categories when the mode needs them (it does nothing).
  */
 export function generateWeek(state) {
-  if (state.employees.length === 0 || categoryList(state.settings).length === 0) return false;
+  if (state.employees.length === 0 || lacksCategories(state.settings)) return false;
   state.assignments = generate(state.settings, state.employees, state.overrides).assignments;
   return true;
 }
@@ -169,7 +180,7 @@ export function generateForShift(state, day, shiftKey) {
   if (state.employees.length === 0) {
     return { message: translate(locale, 'actions.noEmployeesShift'), isError: true, added: 0 };
   }
-  if (categoryList(state.settings).length === 0) {
+  if (lacksCategories(state.settings)) {
     return { message: translate(locale, 'warning.noCategories'), isError: true, added: 0 };
   }
 
@@ -187,6 +198,17 @@ export function generateForShift(state, day, shiftKey) {
 }
 
 // ---------- Minimum staff ----------
+
+/**
+ * Chooses how the minimum staff of a shift is defined: 'categories' or 'leaders'. Both
+ * configurations are kept, so switching back and forth loses nothing.
+ * @returns {boolean} false if the mode is not supported.
+ */
+export function setCoverageMode(settings, mode) {
+  if (!COVERAGE_MODES.includes(mode)) return false;
+  settings.coverageMode = mode;
+  return true;
+}
 
 /**
  * Changes the minimum staff of a category only for one day and shift (day template).
@@ -221,6 +243,40 @@ export function setShiftMinimum(settings, shiftKey, categoryId, count) {
   shift.required = { ...(shift.required ?? {}), [categoryId]: count };
 }
 
+/**
+ * 'leaders' mode: changes how many people (`headcount`) or shift leaders (`leaders`) a shift needs,
+ * for every day.
+ * @param {'headcount'|'leaders'} field
+ * @returns {boolean} false if the field is not one of those.
+ */
+export function setShiftStaffing(settings, shiftKey, field, count) {
+  if (!Object.hasOwn(STAFFING_FIELDS, field)) return false;
+  settings.shifts[shiftKey][field] = count;
+  return true;
+}
+
+/**
+ * 'leaders' mode: changes the headcount or the shift leaders only for one day and shift (day
+ * template). If the value matches the shift value, the override is removed.
+ * @param {'headcount'|'leaders'} field
+ * @returns {boolean} false if the field is not one of those.
+ */
+export function setDayStaffing(state, day, shiftKey, field, count) {
+  if (!Object.hasOwn(STAFFING_FIELDS, field)) return false;
+  const { settings, overrides } = state;
+  const overrideKey = STAFFING_FIELDS[field];
+  const standardCount = shiftStaffing(settings, {}, day, shiftKey)[field];
+  const key = `${day}|${shiftKey}`;
+  const current = { ...(typeof overrides[key] === 'object' ? overrides[key] : {}) };
+
+  if (count === standardCount) delete current[overrideKey];
+  else current[overrideKey] = count;
+
+  if (Object.keys(current).length === 0) delete overrides[key];
+  else overrides[key] = current;
+  return true;
+}
+
 // ---------- Categories ----------
 
 /** Adds a new category, with a lower rank than every existing one (rank 1 if there are none). */
@@ -236,15 +292,16 @@ export function addCategory(settings) {
 
 /**
  * Removes a category: its employees move to the remaining lowest-rank category, and minimums
- * that mentioned it are discarded. The last category cannot be removed.
+ * that mentioned it are discarded. The last category cannot be removed when the coverage mode
+ * needs categories; in 'leaders' mode they are optional and the employees are left without one.
  * @returns {boolean} true if it was removed.
  */
 export function removeCategory(state, categoryId) {
   const { settings, employees, overrides } = state;
-  if (settings.categories.length <= 1) return false;
+  if (requiresCategories(settings) && settings.categories.length <= 1) return false;
 
   settings.categories = settings.categories.filter((category) => category.id !== categoryId);
-  const fallbackId = lowestCategory(settings).id;
+  const fallbackId = lowestCategory(settings)?.id ?? '';
   for (const employee of employees) {
     if (employee.categoryId === categoryId) employee.categoryId = fallbackId;
   }
@@ -277,18 +334,20 @@ export function changeWeek(state, isoDay) {
 // ---------- Employees ----------
 
 /**
- * New employee with the default values (30 h, lowest category).
- * @returns {object|null} The new employee, or null if there is no category to assign.
+ * New employee with the default values (30 h, lowest category, not a shift leader).
+ * @returns {object|null} The new employee, or null if the coverage mode needs a category and there is none.
+ *   Without categories in 'leaders' mode the employee has no category.
  */
 export function addEmployee(state) {
   const category = lowestCategory(state.settings);
-  if (!category) return null;
+  if (!category && requiresCategories(state.settings)) return null;
 
   const employee = {
     id: uid(),
     name: translate(state.settings.locale, 'actions.employeeName', { n: state.employees.length + 1 }),
     contractHours: 30,
-    categoryId: category.id,
+    categoryId: category?.id ?? '',
+    canLeadShift: false,
     absences: [],
     blockedShifts: [],
     prevWeekLastShiftEnd: '',
@@ -310,6 +369,11 @@ export function removeEmployee(state, employeeId) {
 export function rename(entity, name) {
   entity.name = name.trim() || entity.name;
   return entity.name;
+}
+
+/** Marks or unmarks an employee as able to lead a shift (used by the 'leaders' coverage mode). */
+export function setCanLeadShift(employee, canLead) {
+  employee.canLeadShift = Boolean(canLead);
 }
 
 /** Marks or unmarks an absence on a day (without duplicates). */

@@ -1,22 +1,26 @@
 // Spreadsheet-style view model (employees in rows, shifts in columns).
 // Pure module: no DOM. It turns the state into data ready to render.
 
+import {
+  categoryOf,
+  coverageClasses,
+  coverageGap,
+  isClassOverridden,
+  requiredByClass,
+  shiftSupply,
+  tracksLeaders,
+} from './coverage.js';
 import { createTranslator, shiftLabel, translate } from './i18n.js';
 import {
   DIFF_TOLERANCE,
   SHIFT_KEYS,
   breakMinutesOf,
-  categoryList,
-  categoryOf,
-  coverageGap,
   describeMissing,
   diffStatusOf,
   isShiftBlocked,
   netAssignmentHours,
   openDayList,
-  requiredByCategory,
   round2,
-  shiftSupply,
   unavailabilityReason,
 } from './scheduler.js';
 import { daysBetween } from './time.js';
@@ -49,21 +53,25 @@ function sortedByStart(assignments) {
   return [...assignments].sort((a, b) => a.start.localeCompare(b.start));
 }
 
-/** Total places covered (sum of every category), rounded. */
+/** Total places covered (sum of every coverage class), rounded. */
 function totalCovered(supply) {
   return round2(Object.values(supply).reduce((sum, places) => sum + places, 0));
 }
 
-/** Categories with a minimum staff > 0 in a shift, with what is missing in each one. */
+/**
+ * Coverage classes with a minimum staff > 0 in a shift, with what is missing in each one. The classes
+ * are the user's categories, or "shift leader" and "staff" in 'leaders' mode (the field is still
+ * called `categories` in the models below).
+ */
 function categoriesWithNeed(settings, need, gap) {
-  return categoryList(settings)
-    .filter((category) => need[category.id] > 0)
-    .map((category) => ({
-      id: category.id,
-      name: category.name,
-      rank: category.rank,
-      required: need[category.id],
-      missing: round2(gap.byCategory[category.id].missing),
+  return coverageClasses(settings)
+    .filter((coverageClass) => need[coverageClass.id] > 0)
+    .map((coverageClass) => ({
+      id: coverageClass.id,
+      name: coverageClass.name,
+      rank: coverageClass.rank,
+      required: need[coverageClass.id],
+      missing: round2(gap.byCategory[coverageClass.id].missing),
     }));
 }
 
@@ -114,6 +122,7 @@ function buildRow(employee, columns, { statsByEmployee, ...context }) {
     id: employee.id,
     name: employee.name,
     category: categoryOf(employee, context.settings)?.name ?? '',
+    canLead: tracksLeaders(context.settings) && Boolean(employee.canLeadShift),
     cells: columns.map((column) => buildEmployeeCell(employee, column, context)),
     contract: stats.contract,
     target: stats.target,
@@ -126,7 +135,7 @@ function buildRow(employee, columns, { statsByEmployee, ...context }) {
 
 /** Coverage of a column (day + shift): covered places against the minimum. */
 function buildCoverage(column, { settings, employees, overrides, assignments }) {
-  const need = requiredByCategory(settings, overrides, column.day, column.shift);
+  const need = requiredByClass(settings, overrides, column.day, column.shift);
   const supply = shiftSupply(settings, employees, assignments, column.day, column.shift);
   const gap = coverageGap(settings, need, supply);
   const covered = totalCovered(supply);
@@ -251,12 +260,6 @@ export function describeCell(model, rowIndex, columnIndex) {
 
 // ---------- Shift and cell details (popups) ----------
 
-/** Does the day template change this category's minimum? */
-function isOverridden(overrides, day, shiftKey, categoryId) {
-  const dayOverrides = overrides[`${day}|${shiftKey}`];
-  return typeof dayOverrides === 'object' && categoryId in dayOverrides;
-}
-
 /**
  * Details of a specific shift (day + shift): the same data the Edit view cell shows
  * (coverage, minimum per category and assigned people), ready for a popup.
@@ -264,9 +267,10 @@ function isOverridden(overrides, day, shiftKey, categoryId) {
 export function shiftDetail({ settings, employees, overrides, assignments, badIds = new Set() }, day, shiftKey) {
   const t = createTranslator(settings.locale);
   const shift = settings.shifts[shiftKey];
-  const need = requiredByCategory(settings, overrides, day, shiftKey);
+  const need = requiredByClass(settings, overrides, day, shiftKey);
   const supply = shiftSupply(settings, employees, assignments, day, shiftKey);
   const gap = coverageGap(settings, need, supply);
+  const leaderMode = tracksLeaders(settings);
   const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
 
   const categories = categoriesWithNeed(settings, need, gap).map(({ id, name, rank, required, missing }) => ({
@@ -275,7 +279,7 @@ export function shiftDetail({ settings, employees, overrides, assignments, badId
     required,
     missing,
     isShort: missing > DIFF_TOLERANCE,
-    overridden: isOverridden(overrides, day, shiftKey, id),
+    overridden: isClassOverridden(settings, overrides, day, shiftKey, id),
   }));
 
   const shiftAssignments = sortedByStart(
@@ -287,6 +291,7 @@ export function shiftDetail({ settings, employees, overrides, assignments, badId
       id: assignment.id,
       name: employee?.name ?? t('sheet.removedEmployee'),
       category: employee ? (categoryOf(employee, settings)?.name ?? '') : '',
+      canLead: leaderMode && Boolean(employee?.canLeadShift),
       start: assignment.start,
       end: assignment.end,
       hours: round2(netAssignmentHours(settings, assignment)),
@@ -330,6 +335,7 @@ export function cellDetail({ settings, employees, assignments, badIds = new Set(
     shift: shiftKey,
     title: `${employee.name} · ${dayAndDate(settings, day)} · ${shiftLabel(settings.locale, shiftKey)}`,
     category: categoryOf(employee, settings)?.name ?? '',
+    canLead: tracksLeaders(settings) && Boolean(employee.canLeadShift),
     shiftStart: shift.start,
     shiftEnd: shift.end,
     absent: reason === 'absent',

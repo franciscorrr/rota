@@ -478,3 +478,124 @@ test('breaks: generate() books net hours, consistent with validate()', () => {
   // 6 h shifts are not longer than 6 h: same schedule as with the option off.
   assert.equal(assignments.length, generate(settingsWith({ weeklyCap: 400 }), employees).assignments.length);
 });
+
+// ---------- 'leaders' coverage mode ----------
+
+/** Settings in 'leaders' mode: 3 people per morning (1 leader) and 2 per afternoon (1 leader). No categories needed. */
+function leadersModeSettings(patch = {}) {
+  const settings = defaultSettings(WEEK, 'en');
+  settings.coverageMode = 'leaders';
+  settings.shifts.morning.headcount = 3;
+  settings.shifts.morning.leaders = 1;
+  settings.shifts.afternoon.headcount = 2;
+  settings.shifts.afternoon.leaders = 1;
+  return { ...settings, weeklyCap: 400, ...patch };
+}
+
+function makeStaff(total, leaderCount, contractHours = 30) {
+  return makeEmployees(total, contractHours).map((employee, index) => ({
+    ...employee,
+    canLeadShift: index < leaderCount,
+  }));
+}
+
+const assignmentsOf = (assignments, day, shift) => assignments.filter((a) => a.day === day && a.shift === shift);
+
+test("leaders mode: every shift gets its headcount, with a leader in each one (categories are not needed)", () => {
+  const settings = leadersModeSettings();
+  const employees = makeStaff(8, 4);
+  const leaderIds = new Set(employees.filter((e) => e.canLeadShift).map((e) => e.id));
+  const { assignments, warnings } = generate(settings, employees);
+
+  assert.deepEqual(types(warnings).filter((type) => ['unfilled', 'staff', 'config'].includes(type)), []);
+  for (const day of ['2026-11-16', '2026-11-17', '2026-11-20']) {
+    const morning = assignmentsOf(assignments, day, 'morning');
+    const afternoon = assignmentsOf(assignments, day, 'afternoon');
+    assert.equal(morning.length, 3);
+    assert.equal(afternoon.length, 2);
+    assert.ok(morning.some((a) => leaderIds.has(a.employeeId)), 'a leader in the morning');
+    assert.ok(afternoon.some((a) => leaderIds.has(a.employeeId)), 'a leader in the afternoon');
+  }
+});
+
+test('leaders mode: employees who cannot lead never take the leader place, and categories do not matter', () => {
+  const settings = leadersModeSettings();
+  settings.shifts.afternoon.headcount = 0;
+  settings.shifts.afternoon.leaders = 0;
+  settings.categories = [{ id: 'boss', name: 'Boss', rank: 9 }, { id: 'newbie', name: 'Newbie', rank: 1 }];
+  // Only the "newbie" can lead; the "boss" category must not make anyone a leader.
+  const employees = makeStaff(5, 0).map((employee, index) => ({
+    ...employee,
+    categoryId: index === 0 ? 'newbie' : 'boss',
+    canLeadShift: index === 0,
+  }));
+  const { assignments, warnings } = generate(settings, employees);
+
+  for (const day of ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']) {
+    assert.ok(assignmentsOf(assignments, day, 'morning').some((a) => a.employeeId === 'e1'), `e1 leads ${day}`);
+  }
+  // e1 cannot work a sixth day (one day off), and nobody else can lead.
+  const saturday = warnings.filter((w) => w.type === 'unfilled' && w.day === '2026-11-21');
+  assert.equal(saturday.length, 1);
+  assert.match(saturday[0].message, /1 shift leader/);
+});
+
+test('leaders mode: with nobody flagged as leader, leader places stay uncovered and validate() says so', () => {
+  const settings = leadersModeSettings();
+  const employees = makeStaff(6, 0);
+  const { assignments, warnings } = generate(settings, employees);
+
+  assert.ok(types(warnings).includes('unfilled'));
+  assert.ok(warnings.some((w) => w.type === 'unfilled' && w.message.includes('shift leader')));
+  const staffWarning = warnings.find((w) => w.type === 'staff');
+  assert.ok(staffWarning, 'not enough shift leaders in the staff');
+  assert.match(staffWarning.message, /shift leader/);
+  assert.equal(assignmentsOf(assignments, '2026-11-16', 'morning').length, 2, 'the staff places are still filled');
+});
+
+test('leaders mode: no "no categories" warning, and categories mode still asks for them', () => {
+  const leaders = validate(leadersModeSettings(), makeStaff(2, 1), {}, []).warnings;
+  assert.ok(!leaders.some((w) => w.type === 'config'));
+
+  const categories = validate({ ...leadersModeSettings(), coverageMode: 'categories' }, makeStaff(2, 1), {}, []).warnings;
+  assert.ok(categories.some((w) => w.type === 'config'));
+});
+
+test('leaders mode: more leaders needed than flagged employees exist is a staffing error', () => {
+  const settings = leadersModeSettings();
+  settings.shifts.morning.leaders = 3;
+  const { warnings } = validate(settings, makeStaff(8, 2), {}, []);
+  const staffWarning = warnings.find((w) => w.type === 'staff');
+  assert.ok(staffWarning);
+  assert.match(staffWarning.message, /3 shift leader/);
+  assert.match(staffWarning.message, /only 2/);
+});
+
+test('leaders mode: day overrides change the needs of that shift only', () => {
+  const settings = leadersModeSettings();
+  const employees = makeStaff(8, 4);
+  const overrides = { '2026-11-16|morning': { $headcount: 5, $leaders: 2 } };
+  const { assignments } = generate(settings, employees, overrides);
+
+  assert.equal(assignmentsOf(assignments, '2026-11-16', 'morning').length, 5);
+  assert.equal(assignmentsOf(assignments, '2026-11-17', 'morning').length, 3);
+});
+
+test('leaders mode: generateShift only adds what the shift is missing and reports it', () => {
+  const settings = leadersModeSettings();
+  const employees = makeStaff(6, 2);
+  const kept = [{ id: 'k1', employeeId: 'e4', day: MON, shift: 'morning', start: '09:00', end: '15:00' }];
+  const result = generateShift(settings, employees, {}, kept, MON, 'morning');
+
+  assert.equal(result.added.length, 2, '3 people needed, 1 already there');
+  const flagged = new Set(['e1', 'e2']);
+  assert.ok(result.added.some((a) => flagged.has(a.employeeId)), 'the missing leader comes from the flagged employees');
+  assert.equal(result.missingText, '');
+});
+
+test('leaders mode: generateShift names the missing shift leader when nobody can lead', () => {
+  const settings = leadersModeSettings();
+  const result = generateShift(settings, makeStaff(4, 0), {}, [], MON, 'morning');
+  assert.equal(result.added.length, 2);
+  assert.equal(result.missingText, '1 shift leader');
+});

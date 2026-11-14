@@ -22,8 +22,12 @@ import {
   setAbsence,
   setShiftTime,
   setAbsentAllWeek,
+  setCanLeadShift,
+  setCoverageMode,
   setDayMinimum,
+  setDayStaffing,
   setShiftMinimum,
+  setShiftStaffing,
   unblockShift,
   updateAssignmentTimes,
 } from '../src/domain/actions.js';
@@ -317,4 +321,126 @@ test('warnings: classifies errors and returns the ids of assignments that break 
   assert.equal(isErrorWarning(warnings[0]), true);
   assert.equal(isErrorWarning(warnings[1]), false);
   assert.deepEqual([...badAssignmentIds(warnings)], ['a1']);
+});
+
+// ---------- 'leaders' coverage mode ----------
+
+/** State in 'leaders' mode, optionally without categories (they are optional in this mode). */
+function makeLeadersState(employeeCount = 0, { withCategories = true } = {}) {
+  const state = makeState(0);
+  setCoverageMode(state.settings, 'leaders');
+  if (!withCategories) state.settings.categories = [];
+  for (let index = 0; index < employeeCount; index += 1) addEmployee(state);
+  return state;
+}
+
+test('setCoverageMode: only known modes, and each mode keeps its own settings', () => {
+  const state = makeState();
+  assert.equal(setCoverageMode(state.settings, 'leaders'), true);
+  assert.equal(state.settings.coverageMode, 'leaders');
+  assert.equal(setCoverageMode(state.settings, 'nonsense'), false);
+  assert.equal(state.settings.coverageMode, 'leaders');
+
+  setShiftStaffing(state.settings, 'morning', 'headcount', 4);
+  setCoverageMode(state.settings, 'categories');
+  assert.deepEqual(state.settings.shifts.morning.required, { mozo: 2 }, 'the category minimums are untouched');
+  assert.equal(state.settings.shifts.morning.headcount, 4, 'and so are the leaders ones');
+});
+
+test('setShiftStaffing: changes the headcount or the leaders of a shift and rejects other fields', () => {
+  const { settings } = makeLeadersState();
+  assert.equal(setShiftStaffing(settings, 'morning', 'headcount', 5), true);
+  assert.equal(setShiftStaffing(settings, 'morning', 'leaders', 2), true);
+  assert.equal(settings.shifts.morning.headcount, 5);
+  assert.equal(settings.shifts.morning.leaders, 2);
+  assert.equal(setShiftStaffing(settings, 'morning', 'required', 9), false);
+  assert.deepEqual(settings.shifts.morning.required, { mozo: 2 });
+});
+
+test('setDayStaffing: stores an override only when it differs, and removes it when it matches again', () => {
+  const state = makeLeadersState();
+  setShiftStaffing(state.settings, 'morning', 'headcount', 4);
+  setShiftStaffing(state.settings, 'morning', 'leaders', 1);
+
+  setDayStaffing(state, MON, 'morning', 'headcount', 6);
+  assert.deepEqual(state.overrides, { [`${MON}|morning`]: { $headcount: 6 } });
+  setDayStaffing(state, MON, 'morning', 'leaders', 2);
+  assert.deepEqual(state.overrides[`${MON}|morning`], { $headcount: 6, $leaders: 2 });
+
+  setDayStaffing(state, MON, 'morning', 'headcount', 4); // back to the standard value
+  assert.deepEqual(state.overrides[`${MON}|morning`], { $leaders: 2 });
+  setDayStaffing(state, MON, 'morning', 'leaders', 1);
+  assert.deepEqual(state.overrides, {}, 'an empty template is removed');
+
+  assert.equal(setDayStaffing(state, MON, 'morning', 'mozo', 3), false);
+  assert.deepEqual(state.overrides, {});
+});
+
+test('setDayStaffing keeps the category overrides of the same day and shift', () => {
+  const state = makeLeadersState();
+  setDayMinimum(state, MON, 'morning', 'encargado', 1);
+  setDayStaffing(state, MON, 'morning', 'headcount', 5);
+  assert.deepEqual(state.overrides[`${MON}|morning`], { encargado: 1, $headcount: 5 });
+  setDayStaffing(state, MON, 'morning', 'headcount', 0);
+  assert.deepEqual(state.overrides[`${MON}|morning`], { encargado: 1 });
+});
+
+test('setCanLeadShift: marks and unmarks an employee', () => {
+  const state = makeLeadersState(1);
+  const [employee] = state.employees;
+  assert.equal(employee.canLeadShift, false, 'new employees are not shift leaders');
+  setCanLeadShift(employee, true);
+  assert.equal(employee.canLeadShift, true);
+  setCanLeadShift(employee, false);
+  assert.equal(employee.canLeadShift, false);
+});
+
+test("addEmployee: in 'leaders' mode it works without categories; in 'categories' mode it still needs one", () => {
+  const leaders = makeLeadersState(0, { withCategories: false });
+  const employee = addEmployee(leaders);
+  assert.ok(employee);
+  assert.equal(employee.categoryId, '');
+  assert.equal(leaders.employees.length, 1);
+
+  const categories = makeState();
+  categories.settings.categories = [];
+  assert.equal(addEmployee(categories), null);
+});
+
+test("removeCategory: the last category can be removed in 'leaders' mode, leaving employees without one", () => {
+  const state = makeLeadersState(1);
+  for (const category of [...state.settings.categories]) removeCategory(state, category.id);
+  assert.deepEqual(state.settings.categories, []);
+  assert.equal(state.employees[0].categoryId, '');
+
+  const strict = makeState(1);
+  strict.settings.categories = [strict.settings.categories[0]];
+  assert.equal(removeCategory(strict, strict.settings.categories[0].id), false, "'categories' mode keeps the last one");
+});
+
+test("generateWeek and generateForShift: 'leaders' mode does not require categories", () => {
+  const state = makeLeadersState(4, { withCategories: false });
+  state.settings.shifts.morning.headcount = 2;
+  state.settings.shifts.morning.leaders = 1;
+  state.employees[0].canLeadShift = true;
+
+  assert.equal(generateWeek(state), true);
+  assert.ok(state.assignments.length > 0);
+
+  state.assignments = [];
+  const result = generateForShift(state, MON, 'morning');
+  assert.equal(result.isError, false);
+  assert.equal(result.added, 2);
+
+  const strict = makeState(2);
+  strict.settings.categories = [];
+  assert.equal(generateWeek(strict), false);
+  assert.equal(generateForShift(strict, MON, 'morning').isError, true);
+});
+
+test('changeWeek clears the leaders day templates along with the others', () => {
+  const state = makeLeadersState();
+  setDayStaffing(state, MON, 'morning', 'headcount', 7);
+  changeWeek(state, '2026-11-23');
+  assert.deepEqual(state.overrides, {});
 });

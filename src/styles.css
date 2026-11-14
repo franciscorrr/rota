@@ -79,6 +79,12 @@ button.danger:is(:hover, :active, :focus) {
   white-space: nowrap;
 }
 
+/* Marks an employee who can lead a shift ('leaders' coverage mode). */
+.lead-mark {
+  color: var(--pico-primary);
+  white-space: nowrap;
+}
+
 .status {
   min-height: 1.5em;
   color: var(--pico-muted-color);
