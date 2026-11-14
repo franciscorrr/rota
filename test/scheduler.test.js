@@ -434,7 +434,8 @@ test('describeMissing: joins with commas and the language conjunction, and says 
 
 // ---------- Breaks within the shift ----------
 
-const withBreaks = (patch = {}) => settingsWith({ breaks: { enabled: true, afterHours: 6, minutes: 15 }, ...patch });
+const breakRules = (...rules) => ({ enabled: true, rules: rules.map(([afterHours, minutes]) => ({ afterHours, minutes })) });
+const withBreaks = (patch = {}) => settingsWith({ breaks: breakRules([6, 15]), ...patch });
 const at = (start, end) => ({ id: 'x', employeeId: 'e1', day: MON, shift: 'morning', start, end });
 
 test('breaks: disabled by default, net hours equal gross hours', () => {
@@ -449,7 +450,20 @@ test('breaks: only an assignment longer than the threshold has a break, which is
   assert.equal(breakMinutesOf(settings, at('09:00', '15:00')), 0, 'exactly X h: no break');
   assert.equal(breakMinutesOf(settings, at('09:00', '15:01')), 15);
   assert.equal(netAssignmentHours(settings, at('09:00', '17:00')), 7.75);
-  assert.equal(netAssignmentHours(withBreaks({ breaks: { enabled: true, afterHours: 1, minutes: 120 } }), at('09:00', '11:00')), 0);
+  assert.equal(netAssignmentHours(withBreaks({ breaks: breakRules([1, 120]) }), at('09:00', '11:00')), 0);
+});
+
+test('breaks: with several rules the highest threshold exceeded applies, they are not added up', () => {
+  const settings = withBreaks({ breaks: breakRules([8, 30], [6, 15]) }); // unsorted on purpose
+  assert.equal(breakMinutesOf(settings, at('09:00', '14:00')), 0, 'below every threshold');
+  assert.equal(breakMinutesOf(settings, at('09:00', '15:00')), 0, 'exactly the lowest threshold: no break');
+  assert.equal(breakMinutesOf(settings, at('09:00', '16:00')), 15, '7 h: only the 6 h rule');
+  assert.equal(breakMinutesOf(settings, at('09:00', '17:00')), 15, 'exactly 8 h: still the 6 h rule');
+  assert.equal(breakMinutesOf(settings, at('09:00', '17:30')), 30, '8.5 h: the 8 h rule replaces the other');
+  assert.equal(netAssignmentHours(settings, at('09:00', '17:30')), 8);
+  assert.equal(breakMinutesOf(withBreaks({ breaks: breakRules() }), at('09:00', '20:00')), 0, 'no rules: no break');
+  const tied = withBreaks({ breaks: breakRules([6, 15], [6, 20]) });
+  assert.equal(breakMinutesOf(tied, at('09:00', '16:00')), 20, 'same threshold: the longer break');
 });
 
 test('breaks: validate() counts net hours per employee and in the global total; coverage and rest stay gross', () => {

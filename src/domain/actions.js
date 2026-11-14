@@ -277,6 +277,25 @@ export function setDayStaffing(state, day, shiftKey, field, count) {
   return true;
 }
 
+// ---------- Breaks ----------
+
+/**
+ * Adds a break rule after the highest existing one (2 h more, 15 min more) so it is a sensible
+ * starting point; the first rule is 6 h / 15 min.
+ */
+export function addBreakRule(settings) {
+  const { rules } = settings.breaks;
+  const highest = (key) => Math.max(0, ...rules.map((rule) => rule[key]));
+  rules.push(rules.length === 0
+    ? { afterHours: 6, minutes: 15 }
+    : { afterHours: highest('afterHours') + 2, minutes: highest('minutes') + 15 });
+}
+
+/** Removes the break rule at `index` (no-op if it does not exist). */
+export function removeBreakRule(settings, index) {
+  settings.breaks.rules.splice(index, 1);
+}
+
 // ---------- Categories ----------
 
 /** Adds a new category, with a lower rank than every existing one (rank 1 if there are none). */

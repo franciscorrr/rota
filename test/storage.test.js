@@ -97,16 +97,35 @@ test('assignments: the legacy "partial" flag in imported or stored data is dropp
   ]);
 });
 
+const DEFAULT_BREAKS = { enabled: false, rules: [{ afterHours: 6, minutes: 15 }] };
+
 test('breaks: default off; invalid values fall back to the defaults', () => {
-  assert.deepEqual(defaultState().settings.breaks, { enabled: false, afterHours: 6, minutes: 15 });
-  assert.deepEqual(normalizeState({ settings: { weekStart: '2026-11-16' } }).settings.breaks,
-    { enabled: false, afterHours: 6, minutes: 15 });
-  const valid = normalizeState({ settings: { breaks: { enabled: true, afterHours: 5, minutes: 20 } } });
-  assert.deepEqual(valid.settings.breaks, { enabled: true, afterHours: 5, minutes: 20 });
+  assert.deepEqual(defaultState().settings.breaks, DEFAULT_BREAKS);
+  assert.deepEqual(normalizeState({ settings: { weekStart: '2026-11-16' } }).settings.breaks, DEFAULT_BREAKS);
+  const valid = normalizeState({ settings: { breaks: { enabled: true, rules: [{ afterHours: 5, minutes: 20 }] } } });
+  assert.deepEqual(valid.settings.breaks, { enabled: true, rules: [{ afterHours: 5, minutes: 20 }] });
   const invalid = normalizeState({ settings: { breaks: { enabled: 'yes', afterHours: -1, minutes: 'x' } } });
-  assert.deepEqual(invalid.settings.breaks, { enabled: false, afterHours: 6, minutes: 15 });
+  assert.deepEqual(invalid.settings.breaks, DEFAULT_BREAKS);
   const tooLong = normalizeState({ settings: { breaks: { enabled: true, afterHours: 1, minutes: 90 } } });
-  assert.deepEqual(tooLong.settings.breaks, { enabled: true, afterHours: 6, minutes: 15 });
+  assert.deepEqual(tooLong.settings.breaks, { enabled: true, rules: DEFAULT_BREAKS.rules });
+});
+
+test('breaks: several rules are kept sorted by threshold; invalid ones are dropped', () => {
+  const { breaks } = normalizeState({ settings: { breaks: { enabled: true, rules: [
+    { afterHours: 8, minutes: 30 },
+    { afterHours: 'x', minutes: 10 },
+    { afterHours: 1, minutes: 90 },
+    null,
+    { afterHours: 6, minutes: 15 },
+  ] } } }).settings;
+  assert.deepEqual(breaks.rules, [{ afterHours: 6, minutes: 15 }, { afterHours: 8, minutes: 30 }]);
+  const empty = normalizeState({ settings: { breaks: { enabled: true, rules: [] } } }).settings.breaks;
+  assert.deepEqual(empty, { enabled: true, rules: [] }, 'an explicit empty list is respected');
+});
+
+test('breaks: the old single-rule format (afterHours/minutes) becomes one rule', () => {
+  const { breaks } = normalizeState({ settings: { breaks: { enabled: true, afterHours: 5, minutes: 20 } } }).settings;
+  assert.deepEqual(breaks, { enabled: true, rules: [{ afterHours: 5, minutes: 20 }] });
 });
 
 // ---------- 'leaders' coverage mode ----------

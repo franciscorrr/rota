@@ -65,8 +65,9 @@ export function defaultSettings(weekStart, locale = DEFAULT_LOCALE) {
     daysOffPerEmployee: 1,
     contractDaysPerWeek: 5,
     minRestHours: 12,
-    // Break inside long shifts: an assignment longer than `afterHours` includes `minutes` of unpaid break.
-    breaks: { enabled: false, afterHours: 6, minutes: 15 },
+    // Break inside long shifts: a list of rules `{ afterHours, minutes }`; an assignment longer than a rule's
+    // `afterHours` includes its `minutes` of unpaid break, and the rule with the highest threshold wins.
+    breaks: { enabled: false, rules: [{ afterHours: 6, minutes: 15 }] },
     // How the minimum staff of a shift is defined: 'categories' (per category) or 'leaders'
     // (total headcount plus how many of them must be shift leaders). See coverage.js.
     coverageMode: DEFAULT_COVERAGE_MODE,
@@ -85,13 +86,21 @@ export function defaultSettings(weekStart, locale = DEFAULT_LOCALE) {
 // ---------- Hours and days ----------
 
 /**
- * Minutes of break included in a stretch of work lasting `grossHours`: the configured break if the
- * option is enabled and the stretch is longer than the threshold, otherwise 0.
+ * Minutes of break included in a stretch of work lasting `grossHours`. If the option is enabled, the
+ * rules whose threshold the stretch exceeds (strictly) are candidates and the one with the highest
+ * threshold applies (they are not added up). No candidate, or option off: 0.
  */
 export function breakMinutesFor(settings, grossHours) {
   const breaks = settings.breaks;
   if (!breaks?.enabled) return 0;
-  return grossHours > breaks.afterHours ? breaks.minutes : 0;
+  let applicable = null;
+  for (const rule of breaks.rules ?? []) {
+    if (grossHours <= rule.afterHours) continue;
+    const isHigher = !applicable || rule.afterHours > applicable.afterHours
+      || (rule.afterHours === applicable.afterHours && rule.minutes > applicable.minutes);
+    if (isHigher) applicable = rule;
+  }
+  return applicable ? applicable.minutes : 0;
 }
 
 /** Minutes of break included in an assignment (0 if the option is off or it is not long enough). */

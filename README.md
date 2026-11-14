@@ -51,7 +51,7 @@ The interface is available in **Spanish** and **English**. The **Language** sele
 | Week (Monday) | Next Monday |
 | Weekly hours limit | 200 h |
 | Minimum rest between shifts | 12 h |
-| Breaks within the shift | Off. When on: 15 min break in assignments longer than 6 h |
+| Breaks within the shift | Off. When on: one rule, 15 min break in assignments longer than 6 h |
 | Opening days | Monday to Saturday |
 | Days off per employee | 1 |
 | Contract working days (to prorate absences) | 5 |
@@ -94,7 +94,9 @@ For each shift you set **how many people** are needed and **how many of them mus
 
 ## Breaks within the shift
 
-Off by default. When you enable **Breaks within the shift** in the settings, an assignment that lasts **more than X hours** (6 by default) includes a **break of Y minutes** (15 by default).
+Off by default. When you enable **Breaks within the shift** in the settings, an assignment that lasts **more than X hours** includes a **break of Y minutes**. You define a list of rules (X hours → Y minutes), as many as you need; by default there is one (6 h → 15 min).
+
+- If an assignment exceeds several rules, **only the one with the highest X applies** (they are not added up). Example with *6 h → 15 min* and *8 h → 30 min*: a 7 h assignment has a 15 min break, a 9 h one has 30 min, and one of exactly 8 h still has 15 min.
 
 - The break is **not counted as worked time**: it is subtracted from the employee's weekly hours (and so from their target, the weekly limit and the global total). A 08:00–16:00 shift counts as 7.75 h with a 15 min break.
 - It is evaluated **per assignment**: each assignment (employee + shift + start–end) is measured on its own. If you split a shift by hand into several shorter assignments, each one is checked separately.
@@ -188,7 +190,7 @@ This is the format the application exports and imports (see `examples/example-10
     "daysOffPerEmployee": 1,
     "contractDaysPerWeek": 5,
     "minRestHours": 12,
-    "breaks": { "enabled": false, "afterHours": 6, "minutes": 15 },  // optional; unpaid break in long assignments
+    "breaks": { "enabled": false, "rules": [{ "afterHours": 6, "minutes": 15 }] },  // optional; unpaid break in long assignments (highest rule exceeded applies); the old { afterHours, minutes } is still read
     "coverageMode": "categories",     // optional: "categories" (default) | "leaders" (headcount and shift leaders)
     "categories": [
       { "id": "manager",     "name": "Manager",     "rank": 3 },

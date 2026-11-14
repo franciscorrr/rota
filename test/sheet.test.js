@@ -224,7 +224,7 @@ test('cellDetail: cell assignments and whether one can be added', () => {
 
 test('breaks: cells and details show the break, with net hours', () => {
   const settings = sheetSettings();
-  settings.breaks = { enabled: true, afterHours: 6, minutes: 15 };
+  settings.breaks = { enabled: true, rules: [{ afterHours: 6, minutes: 15 }] };
   const employees = [emp('e1', 'Ana'), emp('e2', 'Luis')];
   const assignments = [
     { id: 'a1', employeeId: 'e1', day: MON, shift: 'morning', start: '09:00', end: '15:00' }, // exactly 6 h: no break

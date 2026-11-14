@@ -60,9 +60,15 @@ const es = {
   'config.minRestHours': 'Descanso mínimo entre turnos (h)',
   'config.breaks': 'Descansos dentro del turno',
   'config.breaksHint': 'Si una asignación dura más de X horas, incluye un descanso que no cuenta como hora trabajada '
-    + '(ni para el empleado ni en el total semanal).',
-  'config.breaksAfterHours': 'Descanso si el turno dura más de (h)',
-  'config.breaksMinutes': 'Duración del descanso (min)',
+    + '(ni para el empleado ni en el total semanal). Puedes definir varias reglas: se aplica la de mayor número '
+    + 'de horas que el turno supere.',
+  'config.breaksAfterHours': 'Si el turno dura más de (h)',
+  'config.breaksMinutes': 'Descanso (min)',
+  'config.breaksAfterHoursAria': 'Horas de la regla de descanso {n}',
+  'config.breaksMinutesAria': 'Minutos de la regla de descanso {n}',
+  'config.deleteBreakRuleAria': 'Eliminar la regla de descanso {n}',
+  'config.addBreakRule': 'Añadir regla de descanso',
+  'config.breaksEmpty': 'Sin reglas: ningún turno incluye descanso.',
   'config.daysOff': 'Días libres por empleado',
   'config.daysOffHint': 'Se cuentan entre los días de apertura (los días cerrados no cuentan). '
     + 'Comprueba el mínimo de tu convenio.',
@@ -352,9 +358,15 @@ const en = {
   'config.minRestHours': 'Minimum rest between shifts (h)',
   'config.breaks': 'Breaks within the shift',
   'config.breaksHint': 'If an assignment lasts more than X hours, it includes a break that does not count as worked '
-    + 'time (neither for the employee nor in the weekly total).',
-  'config.breaksAfterHours': 'Break if the shift lasts more than (h)',
-  'config.breaksMinutes': 'Break length (min)',
+    + 'time (neither for the employee nor in the weekly total). You can define several rules: the one with the '
+    + 'highest number of hours that the shift exceeds is applied.',
+  'config.breaksAfterHours': 'If the shift lasts more than (h)',
+  'config.breaksMinutes': 'Break (min)',
+  'config.breaksAfterHoursAria': 'Hours of break rule {n}',
+  'config.breaksMinutesAria': 'Minutes of break rule {n}',
+  'config.deleteBreakRuleAria': 'Delete break rule {n}',
+  'config.addBreakRule': 'Add break rule',
+  'config.breaksEmpty': 'No rules: no shift includes a break.',
   'config.daysOff': 'Days off per employee',
   'config.daysOffHint': 'Counted among the opening days (closed days do not count). '
     + 'Check the minimum in your collective agreement.',

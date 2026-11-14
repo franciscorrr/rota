@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   END_BEFORE_START_ERROR,
   addAssignment,
+  addBreakRule,
   addCategory,
   addEmployee,
   blockShift,
@@ -16,6 +17,7 @@ import {
   isValidRange,
   parseNumber,
   removeAssignment,
+  removeBreakRule,
   removeCategory,
   removeEmployee,
   rename,
@@ -148,6 +150,19 @@ test('setShiftMinimum changes the shift minimum for every day', () => {
   const categoryId = lowestCategory(settings).id;
   setShiftMinimum(settings, 'afternoon', categoryId, 4);
   assert.equal(settings.shifts.afternoon.required[categoryId], 4);
+});
+
+test('break rules: adding continues after the highest one; removing by index', () => {
+  const { settings } = makeState(1);
+  settings.breaks.rules = [];
+  addBreakRule(settings);
+  assert.deepEqual(settings.breaks.rules, [{ afterHours: 6, minutes: 15 }]);
+  addBreakRule(settings);
+  assert.deepEqual(settings.breaks.rules.at(-1), { afterHours: 8, minutes: 30 });
+  removeBreakRule(settings, 0);
+  assert.deepEqual(settings.breaks.rules, [{ afterHours: 8, minutes: 30 }]);
+  removeBreakRule(settings, 5);
+  assert.equal(settings.breaks.rules.length, 1, 'an index that does not exist changes nothing');
 });
 
 test('categories: adding gives a lower rank; removing reassigns employees and clears minimums', () => {

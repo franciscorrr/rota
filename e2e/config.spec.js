@@ -125,8 +125,8 @@ test('the empty-categories notice creates the first category in one click', asyn
 test('breaks within the shift: off by default, shown on long shifts and kept after a reload', async ({ page }) => {
   await openWithSchedule(page);
   const toggle = page.getByRole('checkbox', { name: 'Descansos dentro del turno' });
-  const afterHours = page.getByLabel('Descanso si el turno dura más de (h)');
-  const minutes = page.getByLabel('Duración del descanso (min)');
+  const afterHours = page.getByLabel('Horas de la regla de descanso 1');
+  const minutes = page.getByLabel('Minutos de la regla de descanso 1');
 
   await expect(toggle).not.toBeChecked();
   await expect(afterHours).toBeDisabled();
@@ -160,4 +160,32 @@ test('breaks within the shift: off by default, shown on long shifts and kept aft
   await page.getByRole('checkbox', { name: 'Descansos dentro del turno' }).uncheck();
   await expect(page.locator('.break-mark')).toHaveCount(0);
   await expect(page.locator('.sheet tfoot tr:last-child td.num').nth(2)).toHaveText(hoursWithoutBreaks);
+});
+
+test('breaks within the shift: several rules, the highest one exceeded applies', async ({ page }) => {
+  await openWithSchedule(page);
+  await page.getByRole('checkbox', { name: 'Descansos dentro del turno' }).check();
+  const fill = async (label, value) => {
+    const input = page.getByLabel(label);
+    await input.fill(value);
+    await input.dispatchEvent('change');
+  };
+
+  // The example shifts last 6 h. Rules: > 5 h -> 15 min and > 5.5 h -> 30 min: the second one wins.
+  await fill('Horas de la regla de descanso 1', '5');
+  await page.getByRole('button', { name: 'Añadir regla de descanso' }).click();
+  await expect(page.getByLabel('Horas de la regla de descanso 2')).toHaveValue('7');
+  await fill('Horas de la regla de descanso 2', '5.5');
+  await fill('Minutos de la regla de descanso 2', '30');
+
+  const markedCell = page.locator('td.cell.work', { has: page.locator('.break-mark') }).first();
+  await expect(markedCell.locator('.cell-hours')).toHaveText('5.5 h');
+
+  // Deleting the highest rule leaves the 15 min one.
+  await page.getByRole('button', { name: 'Eliminar la regla de descanso 2' }).click();
+  await expect(page.getByLabel('Horas de la regla de descanso 2')).toHaveCount(0);
+  await expect(markedCell.locator('.cell-hours')).toHaveText('5.75 h');
+
+  await page.reload();
+  await expect(page.getByLabel('Horas de la regla de descanso 1')).toHaveValue('5');
 });

@@ -143,17 +143,28 @@ function normalizeShift(rawShift, defaultShift, settings) {
   };
 }
 
-/** Break settings: `enabled` must be a real boolean; the threshold and the length must be sensible numbers. */
+/** A break rule is valid if its threshold is positive and the break fits inside it. */
+function normalizeBreakRule(rawRule) {
+  if (!isObject(rawRule)) return null;
+  const afterHours = numberOr(rawRule.afterHours, NaN);
+  const minutes = numberOr(rawRule.minutes, NaN);
+  const isValid = afterHours > 0 && minutes >= 0 && minutes < afterHours * 60;
+  return isValid ? { afterHours, minutes } : null;
+}
+
+/**
+ * Break settings: `enabled` must be a real boolean and `rules` a list of valid `{ afterHours, minutes }`
+ * (invalid ones are dropped, the rest is sorted by threshold). Files from before multiple rules
+ * (`{ enabled, afterHours, minutes }`) become a single rule. If nothing usable comes, the defaults are used.
+ */
 function normalizeBreaks(rawBreaks, defaults) {
   const raw = isObject(rawBreaks) ? rawBreaks : {};
-  const afterHours = numberOr(raw.afterHours, defaults.afterHours);
-  const minutes = numberOr(raw.minutes, defaults.minutes);
-  const isValid = afterHours > 0 && minutes < afterHours * 60;
-  return {
-    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : defaults.enabled,
-    afterHours: isValid ? afterHours : defaults.afterHours,
-    minutes: isValid ? minutes : defaults.minutes,
-  };
+  const enabled = typeof raw.enabled === 'boolean' ? raw.enabled : defaults.enabled;
+  const rawRules = Array.isArray(raw.rules) ? raw.rules : [raw];
+  const rules = rawRules.map(normalizeBreakRule).filter(Boolean);
+  const hasRules = Array.isArray(raw.rules) || rules.length > 0;
+  const sorted = rules.sort((a, b) => a.afterHours - b.afterHours || a.minutes - b.minutes);
+  return { enabled, rules: hasRules ? sorted : defaults.rules.map((rule) => ({ ...rule })) };
 }
 
 /**

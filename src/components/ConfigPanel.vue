@@ -2,8 +2,10 @@
 // Settings: language, week, limits, opening days, employee categories and shifts.
 import { computed } from 'vue';
 import {
+  addBreakRule,
   addCategory,
   changeWeek,
+  removeBreakRule,
   removeCategory,
   rename,
   setCoverageMode,
@@ -105,22 +107,54 @@ function onShiftTimeChange(shift, property, event) {
       {{ t('config.breaks') }}
     </label>
     <p><small>{{ t('config.breaksHint') }}</small></p>
-    <div class="grid">
-      <label>
-        {{ t('config.breaksAfterHours') }}
-        <NumberInput v-model="settings.breaks.afterHours" :min="0.5" :step="0.5" :disabled="!settings.breaks.enabled" />
-      </label>
-      <label>
-        {{ t('config.breaksMinutes') }}
-        <NumberInput
-          v-model="settings.breaks.minutes"
-          :min="0"
-          :step="5"
-          :integer="true"
-          :disabled="!settings.breaks.enabled"
-        />
-      </label>
-    </div>
+    <p v-if="settings.breaks.rules.length === 0" class="hint">{{ t('config.breaksEmpty') }}</p>
+    <table v-else>
+      <thead>
+        <tr><th>{{ t('config.breaksAfterHours') }}</th><th>{{ t('config.breaksMinutes') }}</th><th></th></tr>
+      </thead>
+      <tbody>
+        <tr v-for="(rule, index) in settings.breaks.rules" :key="index">
+          <td>
+            <NumberInput
+              v-model="rule.afterHours"
+              :min="0.5"
+              :step="0.5"
+              :disabled="!settings.breaks.enabled"
+              :aria-label="t('config.breaksAfterHoursAria', { n: index + 1 })"
+            />
+          </td>
+          <td>
+            <NumberInput
+              v-model="rule.minutes"
+              :min="0"
+              :step="5"
+              integer
+              :disabled="!settings.breaks.enabled"
+              :aria-label="t('config.breaksMinutesAria', { n: index + 1 })"
+            />
+          </td>
+          <td>
+            <button
+              type="button"
+              class="small danger"
+              :disabled="!settings.breaks.enabled"
+              :aria-label="t('config.deleteBreakRuleAria', { n: index + 1 })"
+              @click="removeBreakRule(settings, index)"
+            >
+              {{ t('config.delete') }}
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <button
+      type="button"
+      class="secondary"
+      :disabled="!settings.breaks.enabled"
+      @click="addBreakRule(settings)"
+    >
+      {{ t('config.addBreakRule') }}
+    </button>
   </fieldset>
 
   <fieldset>
